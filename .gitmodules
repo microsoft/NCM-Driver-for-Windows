@@ -1,0 +1,3 @@
+[submodule "dmf"]
+	path = dmf
+	url = https://github.com/Microsoft/DMF.git
