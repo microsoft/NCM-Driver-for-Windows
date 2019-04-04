@@ -67,11 +67,6 @@ private:
     NcmTxQueue* Get(_In_ NETPACKETQUEUE queue);
 
     PAGED
-    static
-    void
-    EvtDestroyTxQueue(_In_ WDFOBJECT object);
-
-    PAGED
     NcmTxQueue(_In_ NcmAdapter* ncmAdapter,
                _In_ NETPACKETQUEUE queue) :
         m_NcmAdapter(ncmAdapter),

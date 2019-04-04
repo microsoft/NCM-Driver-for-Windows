@@ -62,11 +62,6 @@ private:
     static
     NcmRxQueue* Get(_In_ NETPACKETQUEUE queue);
 
-    PAGED
-    static
-    void
-    EvtDestroyRxQueue(_In_ WDFOBJECT object);
-
     _IRQL_requires_max_(DISPATCH_LEVEL)
     inline
     void

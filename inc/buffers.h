@@ -28,12 +28,14 @@ struct TX_BUFFER_REQUEST
 PAGED
 NTSTATUS TxBufferRequestPoolCreate(
     _In_ WDFDEVICE device,
+    _In_ WDFOBJECT parent,
     _In_ size_t bufferSize,
     _Out_ TX_BUFFER_REQUEST_POOL* handle);
 
 PAGED
 NTSTATUS RxBufferQueueCreate(
     _In_ WDFDEVICE device,
+    _In_ WDFOBJECT parent,
     _Out_ RX_BUFFER_QUEUE* handle);
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
