@@ -12,24 +12,6 @@ NcmTxQueue* NcmTxQueue::Get(_In_ NETPACKETQUEUE queue)
 
 PAGED
 _Use_decl_annotations_
-void
-NcmTxQueue::EvtDestroyTxQueue(
-    _In_ WDFOBJECT object)
-{
-    // TODO once DMF support attach non-WDFDEVICE as the parent object
-    // we don't need to do this anymore
-
-    NcmTxQueue* txQueue = NcmGetTxQueueFromHandle(object);
-
-    if (txQueue->m_TxBufferRequestPool != nullptr)
-    {
-        WdfObjectDelete(txQueue->m_TxBufferRequestPool);
-        txQueue->m_TxBufferRequestPool = nullptr;
-    }
-}
-
-PAGED
-_Use_decl_annotations_
 NTSTATUS
 NcmTxQueue::EvtCreateTxQueue(
     _In_ NETADAPTER netAdapter,
@@ -52,7 +34,6 @@ NcmTxQueue::EvtCreateTxQueue(
 
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&txQueueAttributes,
                                             NcmTxQueue);
-    txQueueAttributes.EvtDestroyCallback = NcmTxQueue::EvtDestroyTxQueue;
 
     NCM_RETURN_IF_NOT_NT_SUCCESS_MSG(
         NetTxQueueCreate(netTxQueueInit,
@@ -82,6 +63,7 @@ NcmTxQueue::InitializeQueue()
 {
     NCM_RETURN_IF_NOT_NT_SUCCESS(
         TxBufferRequestPoolCreate(m_NcmAdapter->m_WdfDevice,
+                                  m_Queue,
                                   m_NcmAdapter->m_Parameters.TxMaxNtbSize,
                                   &m_TxBufferRequestPool));
 
@@ -102,9 +84,9 @@ NcmTxQueue::InitializeQueue()
 _Use_decl_annotations_
 void NcmTxQueue::Advance()
 {
-    NET_RING_PACKET_ITERATOR pi = NetRingGetTxPostPacketIterator(m_Rings);
+    NET_RING_PACKET_ITERATOR pi = NetRingGetPostPackets(m_Rings);
 
-    while (NetRingIteratorAny(pi))
+    while (NetPacketIteratorHasAny(&pi))
     {
         TX_BUFFER_REQUEST* bufferRequest = nullptr;
         NDIS_STATISTICS_INFO Stats = {};
@@ -120,9 +102,9 @@ void NcmTxQueue::Advance()
                                                       bufferRequest->BufferLength,
                                                       NTB_TX);
 
-            while (NetRingIteratorAny(pi))
+            while (NetPacketIteratorHasAny(&pi))
             {
-                NET_PACKET * txNetPacket = NetRingIteratorGetPacket(&pi);
+                NET_PACKET * txNetPacket = NetPacketIteratorGetPacket(&pi);
 
                 if (STATUS_SUCCESS != NcmTransferBlockSetNextDatagram(m_NtbHandle, &pi, &Stats))
                 {
@@ -132,7 +114,7 @@ void NcmTxQueue::Advance()
 
                 // Use Scratch field as completion flag for the tx packet
                 txNetPacket->Scratch = 1;
-                NetRingAdvancePacketIterator(&pi);
+                NetPacketIteratorAdvance(&pi);
             }
 
             NcmTransferBlockSetNdp(m_NtbHandle, &bufferRequest->TransferLength);
@@ -167,14 +149,14 @@ void NcmTxQueue::Advance()
             // no tx buffer available, drop;
             m_NcmAdapter->m_Stats.ifOutDiscards++;
 
-            NET_PACKET * txNetPacket = NetRingIteratorGetPacket(&pi);
+            NET_PACKET * txNetPacket = NetPacketIteratorGetPacket(&pi);
 
             // Use Scratch field as completion flag for the tx packet
             txNetPacket->Scratch = 1;
-            NetRingAdvancePacketIterator(&pi);
+            NetPacketIteratorAdvance(&pi);
         }
 
-        NetRingSetTxPostPacketIterator(&pi);
+        NetPacketIteratorSet(&pi);
     }
 
     CompleteTxPacketsBatch(m_Rings, 1);
@@ -193,11 +175,11 @@ void NcmTxQueue::Cancel()
 {
     (void) m_NcmAdapter->m_UsbNcmDeviceCallbacks->EvtUsbNcmStopTransmit(m_NcmAdapter->GetWdfDevice());
 
-    NET_RING_PACKET_ITERATOR pi = NetRingGetAllPacketIterator(m_Rings);
-    NetRingAdvanceEndPacketIterator(&pi);
-    NetRingSetAllPacketIterator(&pi);
+    NET_RING_PACKET_ITERATOR pi = NetRingGetAllPackets(m_Rings);
+    NetPacketIteratorAdvanceToTheEnd(&pi);
+    NetPacketIteratorSet(&pi);
 
-    NET_RING_FRAGMENT_ITERATOR fi = NetRingGetAllFragmentIterator(m_Rings);
-    NetRingAdvanceEndFragmentIterator(&fi);
-    NetRingSetAllFragmentIterator(&fi);
+    NET_RING_FRAGMENT_ITERATOR fi = NetRingGetAllFragments(m_Rings);
+    NetFragmentIteratorAdvanceToTheEnd(&fi);
+    NetFragmentIteratorSet(&fi);
 }

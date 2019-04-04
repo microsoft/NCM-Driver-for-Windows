@@ -11,24 +11,6 @@ NcmRxQueue* NcmRxQueue::Get(_In_ NETPACKETQUEUE queue)
 
 PAGED
 _Use_decl_annotations_
-void
-NcmRxQueue::EvtDestroyRxQueue(
-    _In_ WDFOBJECT object)
-{
-    // TODO once DMF support attach non-WDFDEVICE as the parent object
-    // we don't need to do this anymore
-
-    NcmRxQueue* rxQueue = NcmGetRxQueueFromHandle(object);
-
-    if (rxQueue->m_RxBufferQueue != nullptr)
-    {
-        WdfObjectDelete(rxQueue->m_RxBufferQueue);
-        rxQueue->m_RxBufferQueue = nullptr;
-    }
-}
-
-PAGED
-_Use_decl_annotations_
 NTSTATUS
 NcmRxQueue::EvtCreateRxQueue(
     _In_ NETADAPTER netAdapter,
@@ -51,7 +33,6 @@ NcmRxQueue::EvtCreateRxQueue(
 
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&rxQueueAttributes,
                                             NcmRxQueue);
-    rxQueueAttributes.EvtDestroyCallback = NcmRxQueue::EvtDestroyRxQueue;
 
     NCM_RETURN_IF_NOT_NT_SUCCESS_MSG(
         NetRxQueueCreate(netRxQueueInit,
@@ -81,6 +62,7 @@ NcmRxQueue::InitializeQueue()
 {
     NCM_RETURN_IF_NOT_NT_SUCCESS(
         RxBufferQueueCreate(m_NcmAdapter->m_WdfDevice,
+                            m_Queue,
                             &m_RxBufferQueue));
 
     NCM_RETURN_IF_NOT_NT_SUCCESS(
@@ -100,10 +82,10 @@ NcmRxQueue::InitializeQueue()
 _Use_decl_annotations_
 void NcmRxQueue::Advance()
 {
-    NET_RING_PACKET_ITERATOR pi = NetRingGetAllPacketIterator(m_Rings);
-    NET_RING_FRAGMENT_ITERATOR fi = NetRingGetAllFragmentIterator(m_Rings);
+    NET_RING_PACKET_ITERATOR pi = NetRingGetAllPackets(m_Rings);
+    NET_RING_FRAGMENT_ITERATOR fi = NetRingGetAllFragments(m_Rings);
 
-    while (NetRingIteratorAny(fi))
+    while (NetFragmentIteratorHasAny(&fi))
     {
         PUCHAR frame = nullptr;
         size_t frameSize = 0;
@@ -113,17 +95,17 @@ void NcmRxQueue::Advance()
             NT_FRE_ASSERT(frame != nullptr);
             NT_FRE_ASSERT(frameSize > 0);
 
-            NET_FRAGMENT* fragment = NetRingIteratorGetFragment(&fi);
+            NET_FRAGMENT* fragment = NetFragmentIteratorGetFragment(&fi);
             fragment->Offset = 0;
             fragment->ValidLength = frameSize;
             RtlCopyMemory(fragment->VirtualAddress, frame, frameSize);
 
-            NET_PACKET* packet = NetRingIteratorGetPacket(&pi);
+            NET_PACKET* packet = NetPacketIteratorGetPacket(&pi);
             packet->FragmentIndex = fi.Iterator.Index;
             packet->FragmentCount = 1;
 
-            NetRingAdvancePacketIterator(&pi);
-            NetRingAdvanceFragmentIterator(&fi);
+            NetPacketIteratorAdvance(&pi);
+            NetFragmentIteratorAdvance(&fi);
         }
         else
         {
@@ -131,8 +113,8 @@ void NcmRxQueue::Advance()
         }
     }
 
-    NetRingSetAllFragmentIterator(&fi);
-    NetRingSetAllPacketIterator(&pi);
+    NetFragmentIteratorSet(&fi);
+    NetPacketIteratorSet(&pi);
 }
 
 _Use_decl_annotations_
@@ -274,11 +256,11 @@ void NcmRxQueue::Cancel()
 {
     (void) m_NcmAdapter->m_UsbNcmDeviceCallbacks->EvtUsbNcmStopReceive(m_NcmAdapter->GetWdfDevice());
 
-    NET_RING_PACKET_ITERATOR pi = NetRingGetAllPacketIterator(m_Rings);
-    NetRingAdvanceEndPacketIterator(&pi);
-    NetRingSetAllPacketIterator(&pi);
+    NET_RING_PACKET_ITERATOR pi = NetRingGetAllPackets(m_Rings);
+    NetPacketIteratorAdvanceToTheEnd(&pi);
+    NetPacketIteratorSet(&pi);
 
-    NET_RING_FRAGMENT_ITERATOR fi = NetRingGetAllFragmentIterator(m_Rings);
-    NetRingAdvanceEndFragmentIterator(&fi);
-    NetRingSetAllFragmentIterator(&fi);
+    NET_RING_FRAGMENT_ITERATOR fi = NetRingGetAllFragments(m_Rings);
+    NetFragmentIteratorAdvanceToTheEnd(&fi);
+    NetFragmentIteratorSet(&fi);
 }

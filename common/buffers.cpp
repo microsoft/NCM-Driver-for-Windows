@@ -21,6 +21,7 @@ PAGED
 _Use_decl_annotations_
 NTSTATUS TxBufferRequestPoolCreate(
     _In_ WDFDEVICE device,
+    _In_ WDFOBJECT parent,
     _In_ size_t bufferSize,
     _Out_ TX_BUFFER_REQUEST_POOL* handle)
 {
@@ -33,7 +34,7 @@ NTSTATUS TxBufferRequestPoolCreate(
     *handle = nullptr;
 
     WDF_OBJECT_ATTRIBUTES_INIT(&objectAttributes);
-    objectAttributes.ParentObject = device;
+    objectAttributes.ParentObject = parent;
 
     DMF_CONFIG_BufferQueue_AND_ATTRIBUTES_INIT(&bufferQueueConfig,
                                                &moduleAttributes);
@@ -122,6 +123,7 @@ TxBufferRequestPoolReturnBufferRequest(_In_ TX_BUFFER_REQUEST_POOL handle,
 PAGED
 _Use_decl_annotations_
 NTSTATUS RxBufferQueueCreate(_In_ WDFDEVICE device,
+                             _In_ WDFOBJECT parent,
                              _Out_ RX_BUFFER_QUEUE* handle)
 {
     WDF_OBJECT_ATTRIBUTES objectAttributes;
@@ -132,7 +134,7 @@ NTSTATUS RxBufferQueueCreate(_In_ WDFDEVICE device,
     *handle = nullptr;
 
     WDF_OBJECT_ATTRIBUTES_INIT(&objectAttributes);
-    objectAttributes.ParentObject = device;
+    objectAttributes.ParentObject = parent;
 
     DMF_CONFIG_BufferQueue_AND_ATTRIBUTES_INIT(&bufferQueueConfig,
                                                &moduleAttributes);
