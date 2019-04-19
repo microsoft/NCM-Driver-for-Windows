@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27428.2015
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28803.202
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "host", "projects\host\host.vcxproj", "{B8F47827-D8AC-48C0-AED1-956AA8D25E71}"
 EndProject
@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "inc", "inc", "{D73E27BB-BCA
 		inc\callbacks.h = inc\callbacks.h
 		inc\mac.h = inc\mac.h
 		inc\ncm.h = inc\ncm.h
+		inc\NetPacketLibrary.h = inc\NetPacketLibrary.h
 		inc\ntb.h = inc\ntb.h
 		inc\trace.h = inc\trace.h
 	EndProjectSection
