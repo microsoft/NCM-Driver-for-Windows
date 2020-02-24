@@ -35,7 +35,7 @@ void StopPipe(_In_ WDFUSBPIPE pipe)
     WdfIoTargetStop(wdfIotarget, WdfIoTargetCancelSentIo);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS 
 UsbNcmHostDevice::InitializeDevice()
@@ -104,7 +104,7 @@ UsbNcmHostDevice::InitializeDevice()
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmHostDevice::CreateAdapter()
@@ -136,7 +136,7 @@ UsbNcmHostDevice::CreateAdapter()
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
 UsbNcmHostDevice::DestroyAdapter()
@@ -150,7 +150,7 @@ UsbNcmHostDevice::DestroyAdapter()
     }
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmHostDevice::RequestClassSpecificControlTransfer(
@@ -187,7 +187,7 @@ UsbNcmHostDevice::RequestClassSpecificControlTransfer(
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmHostDevice::RetrieveConfiguration()
@@ -366,11 +366,12 @@ UsbNcmHostDevice::RetrieveConfiguration()
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
-UsbNcmHostDevice::ConfigCapabilities(PUSB_NCM_CS_FUNCTIONAL_DESCRIPTOR pNcmFunctionalDescr,
-                                     PUSB_ECM_CS_NET_FUNCTIONAL_DESCRIPTOR pEcmFunctionalDescr)
+UsbNcmHostDevice::ConfigCapabilities(
+    PUSB_NCM_CS_FUNCTIONAL_DESCRIPTOR pNcmFunctionalDescr,
+    PUSB_ECM_CS_NET_FUNCTIONAL_DESCRIPTOR pEcmFunctionalDescr)
 {
     WCHAR strMacAddress[12];
     USHORT strMacAddressLength = ARRAYSIZE(strMacAddress);
@@ -460,7 +461,7 @@ UsbNcmHostDevice::ConfigCapabilities(PUSB_NCM_CS_FUNCTIONAL_DESCRIPTOR pNcmFunct
 
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmHostDevice::SelectConfiguration()
@@ -546,10 +547,10 @@ UsbNcmHostDevice::SelectConfiguration()
 _Use_decl_annotations_
 VOID
 UsbNcmHostDevice::ControlInterruptPipeReadCompletetionRoutine(
-    _In_  WDFUSBPIPE,
-    _In_  WDFMEMORY memory,
-    _In_  size_t numBytesTransfered,
-    _In_  WDFCONTEXT context)
+    WDFUSBPIPE,
+    WDFMEMORY memory,
+    size_t numBytesTransfered,
+    WDFCONTEXT context)
 {
     UsbNcmHostDevice* ncmDevice = (UsbNcmHostDevice*) context;
 
@@ -593,10 +594,10 @@ UsbNcmHostDevice::ControlInterruptPipeReadCompletetionRoutine(
 _Use_decl_annotations_
 VOID
 UsbNcmHostDevice::DataBulkInPipeReadCompletetionRoutine(
-    _In_  WDFUSBPIPE,
-    _In_  WDFMEMORY memory,
-    _In_  size_t numBytesTransferred,
-    _In_  WDFCONTEXT context)
+    WDFUSBPIPE,
+    WDFMEMORY memory,
+    size_t numBytesTransferred,
+    WDFCONTEXT context)
 {
     UsbNcmHostDevice* hostDevice = (UsbNcmHostDevice*) context;
 
@@ -610,34 +611,38 @@ UsbNcmHostDevice::DataBulkInPipeReadCompletetionRoutine(
         WDF_NO_HANDLE);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
-UsbNcmHostDevice::StartReceive(_In_ WDFDEVICE usbNcmWdfDevice)
+UsbNcmHostDevice::StartReceive(
+    WDFDEVICE usbNcmWdfDevice)
 {
     StartPipe(NcmGetHostDeviceFromHandle(usbNcmWdfDevice)->m_DataBulkInPipe);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
-UsbNcmHostDevice::StopReceive(_In_ WDFDEVICE usbNcmWdfDevice)
+UsbNcmHostDevice::StopReceive(
+    WDFDEVICE usbNcmWdfDevice)
 {
     StopPipe(NcmGetHostDeviceFromHandle(usbNcmWdfDevice)->m_DataBulkInPipe);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
-UsbNcmHostDevice::StartTransmit(_In_ WDFDEVICE usbNcmWdfDevice)
+UsbNcmHostDevice::StartTransmit(
+    WDFDEVICE usbNcmWdfDevice)
 {
     StartPipe(NcmGetHostDeviceFromHandle(usbNcmWdfDevice)->m_DataBulkOutPipe);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
-UsbNcmHostDevice::StopTransmit(_In_ WDFDEVICE usbNcmWdfDevice)
+UsbNcmHostDevice::StopTransmit(
+    WDFDEVICE usbNcmWdfDevice)
 {
     StopPipe(NcmGetHostDeviceFromHandle(usbNcmWdfDevice)->m_DataBulkOutPipe);
 }
@@ -646,10 +651,10 @@ _Use_decl_annotations_
 inline
 void
 UsbNcmHostDevice::TransmitFramesCompetion(
-    _In_ WDFREQUEST,
-    _In_ WDFIOTARGET target,
-    _In_ PWDF_REQUEST_COMPLETION_PARAMS,
-    _In_ WDFCONTEXT context)
+    WDFREQUEST,
+    WDFIOTARGET target,
+    PWDF_REQUEST_COMPLETION_PARAMS,
+    WDFCONTEXT context)
 {
     UsbNcmHostDevice* hostDevice = NcmGetHostDeviceFromHandle(WdfIoTargetGetDevice(target));
 
@@ -660,8 +665,9 @@ UsbNcmHostDevice::TransmitFramesCompetion(
 
 _Use_decl_annotations_
 NTSTATUS
-UsbNcmHostDevice::TransmitFrames(_In_ WDFDEVICE usbNcmWdfDevice,
-                                 _In_ TX_BUFFER_REQUEST* bufferRequest)
+UsbNcmHostDevice::TransmitFrames(
+    WDFDEVICE usbNcmWdfDevice,
+    TX_BUFFER_REQUEST* bufferRequest)
 {
     NTSTATUS status = STATUS_SUCCESS;
     UsbNcmHostDevice* hostDevice = NcmGetHostDeviceFromHandle(usbNcmWdfDevice);

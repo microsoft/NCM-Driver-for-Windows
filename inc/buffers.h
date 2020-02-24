@@ -41,7 +41,7 @@ NTSTATUS RxBufferQueueCreate(
 _IRQL_requires_max_(DISPATCH_LEVEL)
 NTSTATUS
 TxBufferRequestPoolGetBufferRequest(_In_ TX_BUFFER_REQUEST_POOL handle,
-                                    _Out_ TX_BUFFER_REQUEST** bufferRequest);
+                                    _Outptr_ TX_BUFFER_REQUEST** bufferRequest);
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 void

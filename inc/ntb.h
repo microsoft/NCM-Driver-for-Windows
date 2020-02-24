@@ -31,10 +31,9 @@ NcmTransferBlockReInitializeBuffer(
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 NTSTATUS
-NcmTransferBlockSetNextDatagram(
+NcmTransferBlockCopyNextDatagram(
     _In_ NTB_HANDLE ntbHandle,
-    _In_ NET_RING_PACKET_ITERATOR* pi,
-    _Inout_ NDIS_STATISTICS_INFO* stats);
+    _In_ NcmPacketIterator* pi);
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
@@ -45,6 +44,6 @@ _IRQL_requires_max_(DISPATCH_LEVEL)
 NTSTATUS
 NcmTransferBlockGetNextDatagram(
     _In_ NTB_HANDLE ntbHandle,
-    _Outptr_result_buffer_(datagramBufferSize) PUCHAR* datagramBuffer,
+    _Outptr_result_buffer_(*datagramBufferSize) PUCHAR* datagramBuffer,
     _Out_ size_t* datagramBufferSize);
 

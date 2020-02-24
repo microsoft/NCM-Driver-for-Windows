@@ -31,7 +31,7 @@ public:
         }
     }
 
-    PAGED
+    NONPAGED
     inline
     static
     void
@@ -58,6 +58,15 @@ public:
         Get(netQueue)->Start();
     }
 
+    PAGED
+    inline
+    static
+    void
+    EvtStop(_In_ NETPACKETQUEUE netQueue)
+    {
+        Get(netQueue)->Stop();
+    }
+
 #pragma endregion
 
 private:
@@ -72,7 +81,16 @@ private:
         m_NcmAdapter(ncmAdapter),
         m_Queue(queue)
     {
-        m_Rings = NetTxQueueGetRingCollection(m_Queue);
+        m_OsQueue.RingCollection = NetTxQueueGetRingCollection(m_Queue);
+
+        NET_EXTENSION_QUERY extension;
+        NET_EXTENSION_QUERY_INIT(
+            &extension,
+            NET_FRAGMENT_EXTENSION_VIRTUAL_ADDRESS_NAME,
+            NET_FRAGMENT_EXTENSION_VIRTUAL_ADDRESS_VERSION_1,
+            NetExtensionTypeFragment);
+
+        NetTxQueueGetExtension(queue, &extension, &m_OsQueue.VirtualAddressExtension);
     }
 
     PAGED
@@ -82,19 +100,22 @@ private:
     _IRQL_requires_max_(DISPATCH_LEVEL)
     void Advance();
 
-    PAGED
+    NONPAGED
     void Cancel();
 
     PAGED
     void Start();
 
+    PAGED
+    void Stop();
+
 private:
 
-    NET_RING_COLLECTION const *             m_Rings = nullptr;
-    NcmAdapter*                             m_NcmAdapter = nullptr;
-    NETPACKETQUEUE                          m_Queue = nullptr;
-    NTB_HANDLE                              m_NtbHandle = nullptr;
-    TX_BUFFER_REQUEST_POOL                  m_TxBufferRequestPool = nullptr;
+    NcmOsQueue              m_OsQueue;
+    NcmAdapter*             m_NcmAdapter = nullptr;
+    NETPACKETQUEUE          m_Queue = nullptr;
+    NTB_HANDLE              m_NtbHandle = nullptr;
+    TX_BUFFER_REQUEST_POOL  m_TxBufferRequestPool = nullptr;
 
     friend NcmAdapter;
 };

@@ -36,7 +36,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\adapter\adapter.cpp" />
-    <ClCompile Include="..\..\adapter\request.cpp" />
     <ClCompile Include="..\..\adapter\rxqueue.cpp" />
     <ClCompile Include="..\..\adapter\txqueue.cpp" />
   </ItemGroup>

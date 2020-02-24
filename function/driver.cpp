@@ -80,8 +80,8 @@ UsbNcmFunctionEvtDeviceAdd(
     FuncEntry(USBNCM_FUNCTION);
 
     NCM_RETURN_IF_NOT_NT_SUCCESS_MSG(
-        NetAdapterDeviceInitConfig(DeviceInit),
-        "NetAdapterDeviceInitConfig failed");
+        NetDeviceInitConfig(DeviceInit),
+        "NetDeviceInitConfig failed");
 
     //
     // Set pnp power callbacks

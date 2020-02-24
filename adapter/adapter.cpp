@@ -4,25 +4,11 @@
 #include "adapter.tmh"
 
 #define NCM_SUPPORTED_PACKET_FILTERS (             \
-            NET_PACKET_FILTER_TYPE_DIRECTED      | \
-            NET_PACKET_FILTER_TYPE_MULTICAST     | \
-            NET_PACKET_FILTER_TYPE_ALL_MULTICAST | \
-            NET_PACKET_FILTER_TYPE_BROADCAST     | \
-            NET_PACKET_FILTER_TYPE_PROMISCUOUS)
-
-#define NCM_SUPPORTED_STATISTICS (                         \
-            NET_ADAPTER_STATISTICS_XMIT_OK               | \
-            NET_ADAPTER_STATISTICS_RCV_OK                | \
-            NET_ADAPTER_STATISTICS_XMIT_ERROR            | \
-            NET_ADAPTER_STATISTICS_RCV_ERROR             | \
-            NET_ADAPTER_STATISTICS_RCV_NO_BUFFER         | \
-            NET_ADAPTER_STATISTICS_TRANSMIT_QUEUE_LENGTH | \
-            NET_ADAPTER_STATISTICS_RCV_CRC_ERROR         | \
-            NET_ADAPTER_STATISTICS_BYTES_RCV             | \
-            NET_ADAPTER_STATISTICS_BYTES_XMIT            | \
-            NET_ADAPTER_STATISTICS_RCV_DISCARDS          | \
-            NET_ADAPTER_STATISTICS_XMIT_DISCARDS         | \
-            NET_ADAPTER_STATISTICS_GEN_STATISTICS)
+            NetPacketFilterFlagDirected      | \
+            NetPacketFilterFlagMulticast     | \
+            NetPacketFilterFlagAllMulticast | \
+            NetPacketFilterFlagBroadcast     | \
+            NetPacketFilterFlagPromiscuous)
 
 const USBNCM_ADAPTER_EVENT_CALLBACKS NcmAdapter::s_NcmAdapterCallbacks = {
     sizeof(USBNCM_ADAPTER_EVENT_CALLBACKS),
@@ -32,7 +18,7 @@ const USBNCM_ADAPTER_EVENT_CALLBACKS NcmAdapter::s_NcmAdapterCallbacks = {
     NcmAdapter::NotifyTransmitCompletion,
 };
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmAdapterCreate(_In_ WDFDEVICE wdfDevice,
@@ -90,7 +76,7 @@ UsbNcmAdapterCreate(_In_ WDFDEVICE wdfDevice,
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
 UsbNcmAdapterDestory(
@@ -102,7 +88,7 @@ UsbNcmAdapterDestory(
     WdfObjectDelete(netAdapter);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 NcmAdapter::ConfigAdapter()
@@ -139,18 +125,27 @@ NcmAdapter::ConfigAdapter()
         m_CurrentMacAddress = m_PermanentMacAddress;
     }
 
-    NCM_RETURN_IF_NOT_NT_SUCCESS(ConfigNetRequestQueue());
-
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
+void
+EvtSetPacketFilter(
+    _In_ NETADAPTER NetAdapter,
+    _In_ NET_PACKET_FILTER_FLAGS PacketFilter
+    )
+{
+    NcmAdapter* ncmAdapter = NcmGetAdapterFromHandle(NetAdapter);
+
+    ncmAdapter->SetPacketFilter(PacketFilter);
+}
+
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 NcmAdapter::StartAdapter()
 {
     NET_ADAPTER_LINK_LAYER_CAPABILITIES   linkLayerCaps;
-    NET_ADAPTER_POWER_CAPABILITIES        powerCaps;
     NET_ADAPTER_LINK_STATE                currentLinkState;
 
     NET_ADAPTER_TX_CAPABILITIES           txCaps;
@@ -164,16 +159,20 @@ NcmAdapter::StartAdapter()
     //
 
     NET_ADAPTER_LINK_LAYER_CAPABILITIES_INIT(&linkLayerCaps,
-                                             NCM_SUPPORTED_PACKET_FILTERS,
-                                             NDIS_PACKET_TYPE_MULTICAST,
-                                             NCM_SUPPORTED_STATISTICS,
                                              USBFN_SUPER_SPEED,
                                              USBFN_SUPER_SPEED);
+
+    NET_ADAPTER_PACKET_FILTER_CAPABILITIES packetFilterCapabilities;
+    NET_ADAPTER_PACKET_FILTER_CAPABILITIES_INIT(
+        &packetFilterCapabilities,
+        NCM_SUPPORTED_PACKET_FILTERS,
+        EvtSetPacketFilter);
 
     NetAdapterSetLinkLayerCapabilities(m_NetAdapter, &linkLayerCaps);
     NetAdapterSetPermanentLinkLayerAddress(m_NetAdapter, &m_PermanentMacAddress);
     NetAdapterSetCurrentLinkLayerAddress(m_NetAdapter, &m_CurrentMacAddress);
     NetAdapterSetLinkLayerMtuSize(m_NetAdapter, m_Parameters.MaxDatagramSize - sizeof(ETHERNET_HEADER));
+    NetAdapterSetPacketFilterCapabilities(m_NetAdapter, &packetFilterCapabilities);
 
     //
     // Specify the current link state
@@ -182,34 +181,13 @@ NcmAdapter::StartAdapter()
                                 NDIS_LINK_SPEED_UNKNOWN,
                                 MediaConnectStateUnknown,
                                 MediaDuplexStateFull,
-                                NetAdapterPauseFunctionsUnsupported,
-                                NET_ADAPTER_LINK_STATE_DUPLEX_AUTO_NEGOTIATED);
+                                NetAdapterPauseFunctionTypeUnsupported,
+                                NetAdapterAutoNegotiationFlagDuplexAutoNegotiated);
 
     NetAdapterSetLinkState(m_NetAdapter, &currentLinkState);
 
-    //
-    // Specify Power capabilities, the may need to be break down to adapter specific
-    // settings. Function side shouldn't report any power capabilities
-    //
-    if (m_S0IdleWakeCapable)
-    {
-        NET_ADAPTER_POWER_CAPABILITIES_INIT(&powerCaps);
-
-        powerCaps.Flags = NET_ADAPTER_POWER_WAKE_PACKET_INDICATION | 
-                          NET_ADAPTER_POWER_SELECTIVE_SUSPEND;
-
-        powerCaps.SupportedWakeUpEvents |= NET_ADAPTER_WAKE_ON_MEDIA_CONNECT |
-                                           NET_ADAPTER_WAKE_ON_MEDIA_DISCONNECT;
-
-        powerCaps.SupportedWakePatterns |= NET_ADAPTER_WAKE_MAGIC_PACKET;
-
-        powerCaps.EvtAdapterPreviewWakePattern = NcmAdapter::PreviewWakePacket;
-
-        NetAdapterSetPowerCapabilities(m_NetAdapter, &powerCaps);
-    }
-
     // datapath capabilities
-    NET_ADAPTER_TX_CAPABILITIES_INIT(&txCaps, m_Parameters.MaxDatagramSize, 1);
+    NET_ADAPTER_TX_CAPABILITIES_INIT(&txCaps, 1);
     NET_ADAPTER_RX_CAPABILITIES_INIT_SYSTEM_MANAGED(&rxCaps, m_Parameters.MaxDatagramSize, 1);
 
     NetAdapterSetDataPathCapabilities(m_NetAdapter, &txCaps, &rxCaps);
@@ -218,6 +196,15 @@ NcmAdapter::StartAdapter()
                                      "NetAdapterStart failed");
 
     return STATUS_SUCCESS;
+}
+
+_Use_decl_annotations_
+void
+NcmAdapter::SetPacketFilter(
+    _In_ NET_PACKET_FILTER_FLAGS PacketFilter
+    )
+{
+    m_PacketFilters = PacketFilter;
 }
 
 _Use_decl_annotations_
@@ -237,8 +224,8 @@ NcmAdapter::SetLinkState(
                                     0,
                                     MediaConnectStateConnected,
                                     MediaDuplexStateFull,
-                                    NetAdapterPauseFunctionsUnsupported,
-                                    NET_ADAPTER_LINK_STATE_DUPLEX_AUTO_NEGOTIATED);
+                                    NetAdapterPauseFunctionTypeUnsupported,
+                                    NetAdapterAutoNegotiationFlagDuplexAutoNegotiated);
 
         currentLinkState.TxLinkSpeed = ncmAdapter->m_TxLinkSpeed;
         currentLinkState.RxLinkSpeed = ncmAdapter->m_RxLinkSpeed;
@@ -250,8 +237,8 @@ NcmAdapter::SetLinkState(
                                     0,
                                     MediaConnectStateDisconnected,
                                     MediaDuplexStateUnknown,
-                                    NetAdapterPauseFunctionsUnknown,
-                                    NET_ADAPTER_LINK_STATE_DUPLEX_AUTO_NEGOTIATED);
+                                    NetAdapterPauseFunctionTypeUnsupported,
+                                    NetAdapterAutoNegotiationFlagDuplexAutoNegotiated);
     }
 
     NetAdapterSetLinkState(ncmAdapter->m_NetAdapter, &currentLinkState);
@@ -307,24 +294,4 @@ NcmAdapter::NotifyTransmitCompletion(
 
     // UsbNcm's tx is completed instantly within Advance()
     // no need to notify OS about tx completion
-}
-
-PAGED
-_Use_decl_annotations_
-NTSTATUS
-NcmAdapter::PreviewWakePacket(
-    _In_ NETADAPTER netAdapter,
-    _In_ NETPOWERSETTINGS existingWakeSettings,
-    _In_ NDIS_PM_WOL_PACKET woLPacketType,
-    _In_ PNDIS_PM_WOL_PATTERN patternToBeAdded
-)
-{
-    PAGED_CODE();
-
-    UNREFERENCED_PARAMETER(netAdapter);
-    UNREFERENCED_PARAMETER(woLPacketType);
-    UNREFERENCED_PARAMETER(existingWakeSettings);
-    UNREFERENCED_PARAMETER(patternToBeAdded);
-
-    return STATUS_SUCCESS;
 }

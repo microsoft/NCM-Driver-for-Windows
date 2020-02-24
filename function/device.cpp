@@ -15,7 +15,7 @@ const USBNCM_DEVICE_EVENT_CALLBACKS UsbNcmFunctionDevice::s_NcmDeviceCallbacks =
     UsbNcmFunctionDevice::TransmitFrames
 };
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmFunctionDevice::InitializeDevice()
@@ -42,7 +42,7 @@ UsbNcmFunctionDevice::InitializeDevice()
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
 UsbNcmFunctionDevice::UnInitializeDevice()
@@ -54,7 +54,7 @@ UsbNcmFunctionDevice::UnInitializeDevice()
     UsbFnKmClassLibUnregisterClassDevice(m_UsbFnClassLibHandle);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmFunctionDevice::CreateContinuousReaders()
@@ -133,7 +133,7 @@ UsbNcmFunctionDevice::CreateContinuousReaders()
 // UsbNcm Fn Properties
 //
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmFunctionDevice::CacheClassInformation()
@@ -195,7 +195,7 @@ UsbNcmFunctionDevice::CacheClassInformation()
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 VOID
 UsbNcmFunctionDevice::SetParameters()
@@ -229,7 +229,7 @@ UsbNcmFunctionDevice::SetParameters()
     m_Use32BitNtb = 0;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmFunctionDevice::RegisterCdcMacString()
@@ -315,12 +315,12 @@ UsbNcmFunctionDevice::RegisterCdcMacString()
 // UsbNcm Fn Interrupt
 //
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 VOID
 UsbNcmFunctionDevice::InterruptHost(
-    _In_ PVOID InterruptBuffer,
-    _In_ size_t InterruptBufferSize)
+    PVOID InterruptBuffer,
+    size_t InterruptBufferSize)
 {
     WDFMEMORY memory = nullptr;
     PVOID buffer = nullptr;
@@ -382,12 +382,12 @@ UsbNcmFunctionDevice::InterruptHost(
     TraceInfo(USBNCM_FUNCTION, "Send interrupt asynchronously,  %!status!", status);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 VOID
 UsbNcmFunctionDevice::NotifyConnectionSpeedAndStatusChange(
-    _In_ bool NetworkConnectionState,
-    _In_ UINT64 LinkSpeed)
+    bool NetworkConnectionState,
+    UINT64 LinkSpeed)
 {
     if (NetworkConnectionState == true)
     {
@@ -433,7 +433,7 @@ UsbNcmFunctionDevice::NotifyConnectionSpeedAndStatusChange(
 // UsbNcm Fn Setup Packet Processing
 //
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmFunctionDevice::SendHandshake()
@@ -462,12 +462,12 @@ UsbNcmFunctionDevice::SendHandshake()
 //Caller is responsible for the life time of the buffer & correct sizing of the buffer,
 //ReadEp0 should always followed by a IOCTL_INTERNAL_USBFN_CONTROL_STATUS_HANDSHAKE_IN on ep0
 //
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmFunctionDevice::ReadFromEndPoint0(
-    _In_ size_t bytesToRead,
-    _Out_writes_bytes_(bytesToRead) PVOID buffer)
+    size_t bytesToRead,
+    PVOID buffer)
 {
     NTSTATUS status =
         DMF_ContinuousRequestTarget_SendSynchronously(
@@ -495,12 +495,12 @@ UsbNcmFunctionDevice::ReadFromEndPoint0(
 //Caller is responsible for the life time of the buffer & correct sizing of the buffer,
 //WriteEp0 should always followed by a IOCTL_INTERNAL_USBFN_CONTROL_STATUS_HANDSHAKE_OUT on ep0
 //
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmFunctionDevice::WriteToEndPoint0(
-    _In_reads_bytes_(writeBufLen) PVOID writeBuf,
-    _In_ size_t writeBufLen)
+    PVOID writeBuf,
+    size_t writeBufLen)
 {
     NTSTATUS status =
         DMF_ContinuousRequestTarget_SendSynchronously(
@@ -526,7 +526,7 @@ UsbNcmFunctionDevice::WriteToEndPoint0(
     return status;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 VOID
 UsbNcmFunctionDevice::StallEndPoint0()
@@ -547,11 +547,11 @@ UsbNcmFunctionDevice::StallEndPoint0()
     }
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 VOID
 UsbNcmFunctionDevice::ProcessSetupPacket(
-    _In_ const USB_DEFAULT_PIPE_SETUP_PACKET& SetupPacket)
+    const USB_DEFAULT_PIPE_SETUP_PACKET& SetupPacket)
 {
     NcmRequestType requestType = static_cast<NcmRequestType>(SetupPacket.bRequest);
     bool stallEp0 = true;
@@ -715,7 +715,7 @@ UsbNcmFunctionDevice::ProcessSetupPacket(
 // UsbNcm Fn Bus Notification
 //
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmFunctionDevice::SubscribeBusEventNotification()
@@ -726,7 +726,7 @@ UsbNcmFunctionDevice::SubscribeBusEventNotification()
     return DMF_ContinuousRequestTarget_Start(m_ControlContinuousRequest);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 VOID
 UsbNcmFunctionDevice::UnSubscribeBusEventNotification()
@@ -735,15 +735,15 @@ UsbNcmFunctionDevice::UnSubscribeBusEventNotification()
     DMF_ContinuousRequestTarget_IoTargetClear(m_ControlContinuousRequest);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 ContinuousRequestTarget_BufferDisposition
 UsbNcmFunctionDevice::BusEventNotificationRead(
-    _In_ DMFMODULE dmfModule,
-    _In_reads_(OutputBufferSize) VOID* outputBuffer,
-    _In_ size_t,
-    _In_ VOID*,
-    _In_ NTSTATUS completionStatus)
+    DMFMODULE dmfModule,
+    VOID* outputBuffer,
+    size_t,
+    VOID*,
+    NTSTATUS completionStatus)
 {
     UsbNcmFunctionDevice* functionDevice =
         NcmGetFunctionDeviceFromHandle(DMF_ParentDeviceGet(dmfModule));
@@ -869,14 +869,14 @@ UsbNcmFunctionDevice::BusEventNotificationRead(
 // UsbNcm Fn Bulkout
 //
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
 UsbNcmFunctionDevice::GetPipeMemoryForDataReader(
-    _In_ DMFMODULE dmfModule,
-    _Out_writes_(*inputBufferSize) VOID* inputBuffer,
-    _Out_ size_t* inputBufferSize,
-    _In_ VOID*)
+    DMFMODULE dmfModule,
+    VOID* inputBuffer,
+    size_t* inputBufferSize,
+    VOID*)
 {
     UsbNcmFunctionDevice* functionDevice =
         NcmGetFunctionDeviceFromHandle(DMF_ParentDeviceGet(dmfModule));
@@ -888,15 +888,15 @@ UsbNcmFunctionDevice::GetPipeMemoryForDataReader(
     *inputBufferSize = sizeof(USBFNPIPEID);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 ContinuousRequestTarget_BufferDisposition
 UsbNcmFunctionDevice::DataBulkOutPipeRead(
-    _In_ DMFMODULE dmfModule,
-    _In_reads_(OutputBufferSize) VOID* outputBuffer,
-    _In_ size_t outputBufferSize,
-    _In_ VOID*,
-    _In_ NTSTATUS completionStatus)
+    DMFMODULE dmfModule,
+    VOID* outputBuffer,
+    size_t outputBufferSize,
+    VOID*,
+    NTSTATUS completionStatus)
 {
     if (NT_SUCCESS(completionStatus))
     {
@@ -929,7 +929,7 @@ UsbNcmFunctionDevice::DataBulkOutPipeRead(
 
 // TODO Bus notfication callback must be invoked at passive
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmFunctionDevice::CreateAdapter()
@@ -975,7 +975,7 @@ UsbNcmFunctionDevice::CreateAdapter()
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 VOID
 UsbNcmFunctionDevice::DestroyAdapter()
@@ -1009,10 +1009,11 @@ UsbNcmFunctionDevice::DestroyAdapter()
 // UsbNcm Fn Device Interface
 //
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
-UsbNcmFunctionDevice::StartReceive(_In_ WDFDEVICE usbNcmWdfDevice)
+UsbNcmFunctionDevice::StartReceive(
+    WDFDEVICE usbNcmWdfDevice)
 {
     TraceInfo(USBNCM_FUNCTION, "Start Receive");
 
@@ -1025,10 +1026,11 @@ UsbNcmFunctionDevice::StartReceive(_In_ WDFDEVICE usbNcmWdfDevice)
     (void) DMF_ContinuousRequestTarget_Start(functionDevice->m_DataContinuousRequest);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
-UsbNcmFunctionDevice::StopReceive(_In_ WDFDEVICE usbNcmWdfDevice)
+UsbNcmFunctionDevice::StopReceive(
+    WDFDEVICE usbNcmWdfDevice)
 {
     TraceInfo(USBNCM_FUNCTION, "Stop Receive");
 
@@ -1038,10 +1040,11 @@ UsbNcmFunctionDevice::StopReceive(_In_ WDFDEVICE usbNcmWdfDevice)
     DMF_ContinuousRequestTarget_IoTargetClear(functionDevice->m_DataContinuousRequest);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
-UsbNcmFunctionDevice::StartTransmit(_In_ WDFDEVICE usbNcmWdfDevice)
+UsbNcmFunctionDevice::StartTransmit(
+    WDFDEVICE usbNcmWdfDevice)
 {
     TraceInfo(USBNCM_FUNCTION, "Start Transmit");
 
@@ -1050,10 +1053,11 @@ UsbNcmFunctionDevice::StartTransmit(_In_ WDFDEVICE usbNcmWdfDevice)
     ExReInitializeRundownProtection(&functionDevice->m_BulkInRundown);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void
-UsbNcmFunctionDevice::StopTransmit(_In_ WDFDEVICE usbNcmWdfDevice)
+UsbNcmFunctionDevice::StopTransmit(
+    WDFDEVICE usbNcmWdfDevice)
 {
     TraceInfo(USBNCM_FUNCTION, "Stop Transmit");
 
@@ -1098,10 +1102,10 @@ _Use_decl_annotations_
 inline
 void
 UsbNcmFunctionDevice::TransmitFramesCompetion(
-    _In_ WDFREQUEST,
-    _In_ WDFIOTARGET target,
-    _In_ PWDF_REQUEST_COMPLETION_PARAMS,
-    _In_ WDFCONTEXT context)
+    WDFREQUEST,
+    WDFIOTARGET target,
+    PWDF_REQUEST_COMPLETION_PARAMS,
+    WDFCONTEXT context)
 {
     UsbNcmFunctionDevice* functionDevice =
         NcmGetFunctionDeviceFromHandle(WdfIoTargetGetDevice(target));
@@ -1115,8 +1119,9 @@ UsbNcmFunctionDevice::TransmitFramesCompetion(
 
 _Use_decl_annotations_
 NTSTATUS
-UsbNcmFunctionDevice::TransmitFrames(_In_ WDFDEVICE usbNcmWdfDevice,
-                                     _In_ TX_BUFFER_REQUEST* bufferRequest)
+UsbNcmFunctionDevice::TransmitFrames(
+    WDFDEVICE usbNcmWdfDevice,
+    TX_BUFFER_REQUEST* bufferRequest)
 {
     NTSTATUS status = STATUS_SUCCESS;
     UsbNcmFunctionDevice* functionDevice = NcmGetFunctionDeviceFromHandle(usbNcmWdfDevice);

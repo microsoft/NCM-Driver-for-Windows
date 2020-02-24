@@ -10,12 +10,12 @@ NcmTxQueue* NcmTxQueue::Get(_In_ NETPACKETQUEUE queue)
     return NcmGetTxQueueFromHandle(queue);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 NcmTxQueue::EvtCreateTxQueue(
-    _In_ NETADAPTER netAdapter,
-    _Inout_ NETTXQUEUE_INIT * netTxQueueInit)
+    NETADAPTER netAdapter,
+    NETTXQUEUE_INIT * netTxQueueInit)
 {
     NET_PACKET_QUEUE_CONFIG queueConfig;
     WDF_OBJECT_ATTRIBUTES txQueueAttributes;
@@ -31,6 +31,7 @@ NcmTxQueue::EvtCreateTxQueue(
                                  EvtCancel);
 
     queueConfig.EvtStart = EvtStart;
+    queueConfig.EvtStop = EvtStop;
 
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&txQueueAttributes,
                                             NcmTxQueue);
@@ -56,7 +57,7 @@ NcmTxQueue::EvtCreateTxQueue(
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 NcmTxQueue::InitializeQueue()
@@ -84,12 +85,11 @@ NcmTxQueue::InitializeQueue()
 _Use_decl_annotations_
 void NcmTxQueue::Advance()
 {
-    NET_RING_PACKET_ITERATOR pi = NetRingGetPostPackets(m_Rings);
+    NcmPacketIterator pi = NcmGetAllPackets(&m_OsQueue);
 
-    while (NetPacketIteratorHasAny(&pi))
+    while (pi.HasAny())
     {
         TX_BUFFER_REQUEST* bufferRequest = nullptr;
-        NDIS_STATISTICS_INFO Stats = {};
 
         NTSTATUS status =
             TxBufferRequestPoolGetBufferRequest(m_TxBufferRequestPool,
@@ -102,19 +102,16 @@ void NcmTxQueue::Advance()
                                                       bufferRequest->BufferLength,
                                                       NTB_TX);
 
-            while (NetPacketIteratorHasAny(&pi))
+            while (pi.HasAny())
             {
-                NET_PACKET * txNetPacket = NetPacketIteratorGetPacket(&pi);
-
-                if (STATUS_SUCCESS != NcmTransferBlockSetNextDatagram(m_NtbHandle, &pi, &Stats))
+                if (STATUS_SUCCESS != NcmTransferBlockCopyNextDatagram(m_NtbHandle, &pi))
                 {
                     // no more space in the NTB for further datagram, send the current NTB now
                     break;
                 }
 
-                // Use Scratch field as completion flag for the tx packet
-                txNetPacket->Scratch = 1;
-                NetPacketIteratorAdvance(&pi);
+                // tx is completed instantly once packet is copied
+                pi.Advance();
             }
 
             NcmTransferBlockSetNdp(m_NtbHandle, &bufferRequest->TransferLength);
@@ -124,62 +121,36 @@ void NcmTxQueue::Advance()
                     m_NcmAdapter->GetWdfDevice(),
                     bufferRequest);
 
-            if (NT_SUCCESS(status))
-            {
-                m_NcmAdapter->m_Stats.ifHCOutBroadcastPkts += Stats.ifHCOutBroadcastPkts;
-                m_NcmAdapter->m_Stats.ifHCOutBroadcastOctets += Stats.ifHCOutBroadcastOctets;
-                m_NcmAdapter->m_Stats.ifHCOutMulticastPkts += Stats.ifHCOutMulticastPkts;
-                m_NcmAdapter->m_Stats.ifHCOutMulticastOctets += Stats.ifHCOutMulticastOctets;
-                m_NcmAdapter->m_Stats.ifHCOutUcastPkts += Stats.ifHCOutUcastPkts;
-                m_NcmAdapter->m_Stats.ifHCOutUcastOctets += Stats.ifHCOutUcastOctets;
-            }
-            else
+            if (!NT_SUCCESS(status))
             {
                 TxBufferRequestPoolReturnBufferRequest(m_TxBufferRequestPool,
                                                        bufferRequest);
-
-                m_NcmAdapter->m_Stats.ifOutErrors +=
-                    Stats.ifHCOutBroadcastPkts +
-                    Stats.ifHCOutMulticastPkts +
-                    Stats.ifHCOutUcastPkts;
             }
         }
         else
         {
-            // no tx buffer available, drop;
-            m_NcmAdapter->m_Stats.ifOutDiscards++;
-
-            NET_PACKET * txNetPacket = NetPacketIteratorGetPacket(&pi);
-
-            // Use Scratch field as completion flag for the tx packet
-            txNetPacket->Scratch = 1;
-            NetPacketIteratorAdvance(&pi);
+            // no tx buffer available, drop and complete this packet
+            pi.Advance();
         }
 
-        NetPacketIteratorSet(&pi);
+        pi.Set();
     }
-
-    CompleteTxPacketsBatch(m_Rings, 1);
 }
 
-PAGED
-_Use_decl_annotations_
+PAGEDX
 void NcmTxQueue::Start()
 {
     (void) m_NcmAdapter->m_UsbNcmDeviceCallbacks->EvtUsbNcmStartTransmit(m_NcmAdapter->GetWdfDevice());
 }
 
-PAGED
-_Use_decl_annotations_
-void NcmTxQueue::Cancel()
+PAGEDX
+void NcmTxQueue::Stop()
 {
     (void) m_NcmAdapter->m_UsbNcmDeviceCallbacks->EvtUsbNcmStopTransmit(m_NcmAdapter->GetWdfDevice());
+}
 
-    NET_RING_PACKET_ITERATOR pi = NetRingGetAllPackets(m_Rings);
-    NetPacketIteratorAdvanceToTheEnd(&pi);
-    NetPacketIteratorSet(&pi);
-
-    NET_RING_FRAGMENT_ITERATOR fi = NetRingGetAllFragments(m_Rings);
-    NetFragmentIteratorAdvanceToTheEnd(&fi);
-    NetFragmentIteratorSet(&fi);
+NONPAGEDX
+void NcmTxQueue::Cancel()
+{
+    NcmReturnAllPacketsAndFragments(&m_OsQueue);
 }

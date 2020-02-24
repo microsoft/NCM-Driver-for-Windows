@@ -17,13 +17,13 @@ struct TxBufferRequestPoolEnumContext
     NTSTATUS enumStatus;
 };
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS TxBufferRequestPoolCreate(
-    _In_ WDFDEVICE device,
-    _In_ WDFOBJECT parent,
-    _In_ size_t bufferSize,
-    _Out_ TX_BUFFER_REQUEST_POOL* handle)
+    WDFDEVICE device,
+    WDFOBJECT parent,
+    size_t bufferSize,
+    TX_BUFFER_REQUEST_POOL* handle)
 {
     WDF_OBJECT_ATTRIBUTES objectAttributes;
     DMF_MODULE_ATTRIBUTES moduleAttributes;
@@ -120,7 +120,7 @@ TxBufferRequestPoolReturnBufferRequest(_In_ TX_BUFFER_REQUEST_POOL handle,
 }
 
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS RxBufferQueueCreate(_In_ WDFDEVICE device,
                              _In_ WDFOBJECT parent,

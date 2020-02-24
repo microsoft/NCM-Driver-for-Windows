@@ -10,10 +10,14 @@
 
 /// Use on pageable functions.
 #define PAGED CODE_SEG("PAGE") _IRQL_always_function_max_(PASSIVE_LEVEL)
+/// Use on pageable functions, where you don't want the SAL IRQL annotation to say PASSIVE_LEVEL.
+#define PAGEDX CODE_SEG("PAGE")
 /// Use on code in the INIT segment. (Code is discarded after DriverEntry returns.)
 #define INITCODE CODE_SEG("INIT")
 /// Use on code that must always be locked in memory.
 #define NONPAGED CODE_SEG(".text") _IRQL_requires_max_(DISPATCH_LEVEL)
+/// Use on code that must always be locked in memory, where you don't want the SAL IRQL annotation to say DISPATCH_LEVEL.
+#define NONPAGEDX CODE_SEG(".text")
 
 //
 // Define the tracing flags.

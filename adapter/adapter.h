@@ -7,10 +7,10 @@
 #include <initguid.h>
 #include <new.h>
 
-#include <netadaptercx.h>
-#include <preview/netringiterator.h>
-#include <NetPacketLibrary.h>
+#include <preview/netadaptercx.h>
+#include <preview/netadapter.h>
 
+#include "ncmringiterator.h"
 #include "trace.h"
 #include "ncm.h"
 #include "ntb.h"
@@ -38,34 +38,12 @@ public:
     WDFDEVICE
     GetWdfDevice() { return m_WdfDevice; }
 
-    PAGED
-    static
-    void
-    HandleQueryRequest(
-        _In_ NETREQUESTQUEUE requestQueue,
-        _In_ NETREQUEST request,
-        _Out_writes_bytes_(outputBufferLength) PVOID outputBuffer,
-        _In_ UINT outputBufferLength);
-
-    PAGED
-    static
     void
     SetPacketFilter(
-        _In_ NETREQUESTQUEUE requestQueue,
-        _In_ NETREQUEST request,
-        _In_reads_bytes_(inputBufferLength) PVOID inputBuffer,
-        _In_ UINT inputBufferLength);
+        _In_ NET_PACKET_FILTER_FLAGS PacketFilter
+        );
 
 private:
-
-    PAGED
-    static
-    NTSTATUS
-    PreviewWakePacket(
-        _In_ NETADAPTER netAdapter,
-        _In_ NETPOWERSETTINGS existingWakeSettings,
-        _In_ NDIS_PM_WOL_PACKET woLPacketType,
-        _In_ PNDIS_PM_WOL_PATTERN patternToBeAdded);
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
     static
@@ -112,10 +90,6 @@ private:
                                             m_Parameters.MacAddress);
     }
 
-    PAGED
-    NTSTATUS
-    ConfigNetRequestQueue();
-
 private:
 
     static const USBNCM_ADAPTER_EVENT_CALLBACKS s_NcmAdapterCallbacks;
@@ -129,10 +103,8 @@ private:
     bool                                        m_LinkUp = false;
     ULONG64                                     m_TxLinkSpeed = 0;
     ULONG64                                     m_RxLinkSpeed = 0;
-    bool                                        m_S0IdleWakeCapable = false;
     USBNCM_ADAPTER_PARAMETERS const             m_Parameters = {};
-    NDIS_STATISTICS_INFO                        m_Stats = {};
-    NET_PACKET_FILTER_TYPES_FLAGS               m_PacketFilters = (NET_PACKET_FILTER_TYPES_FLAGS) 0x0;
+    NET_PACKET_FILTER_FLAGS                     m_PacketFilters = (NET_PACKET_FILTER_FLAGS)0;
 
     friend NcmTxQueue;
     friend NcmRxQueue;

@@ -9,7 +9,7 @@ NcmRxQueue* NcmRxQueue::Get(_In_ NETPACKETQUEUE queue)
     return NcmGetRxQueueFromHandle(queue);
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 NcmRxQueue::EvtCreateRxQueue(
@@ -30,6 +30,7 @@ NcmRxQueue::EvtCreateRxQueue(
                                  EvtCancel);
 
     queueConfig.EvtStart = EvtStart;
+    queueConfig.EvtStop = EvtStop;
 
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&rxQueueAttributes,
                                             NcmRxQueue);
@@ -55,7 +56,7 @@ NcmRxQueue::EvtCreateRxQueue(
     return STATUS_SUCCESS;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 NcmRxQueue::InitializeQueue()
@@ -82,10 +83,10 @@ NcmRxQueue::InitializeQueue()
 _Use_decl_annotations_
 void NcmRxQueue::Advance()
 {
-    NET_RING_PACKET_ITERATOR pi = NetRingGetAllPackets(m_Rings);
-    NET_RING_FRAGMENT_ITERATOR fi = NetRingGetAllFragments(m_Rings);
+    NcmPacketIterator pi = NcmGetAllPackets(&m_OsQueue);
+    NcmFragmentIterator fi = NcmGetAllFragments(&m_OsQueue);
 
-    while (NetFragmentIteratorHasAny(&fi))
+    while (fi.HasAny())
     {
         PUCHAR frame = nullptr;
         size_t frameSize = 0;
@@ -95,17 +96,18 @@ void NcmRxQueue::Advance()
             NT_FRE_ASSERT(frame != nullptr);
             NT_FRE_ASSERT(frameSize > 0);
 
-            NET_FRAGMENT* fragment = NetFragmentIteratorGetFragment(&fi);
+            NET_FRAGMENT* fragment = fi.GetFragment();
             fragment->Offset = 0;
             fragment->ValidLength = frameSize;
-            RtlCopyMemory(fragment->VirtualAddress, frame, frameSize);
+            RtlCopyMemory(fi.GetVirtualAddress()->VirtualAddress, frame, frameSize);
 
-            NET_PACKET* packet = NetPacketIteratorGetPacket(&pi);
-            packet->FragmentIndex = fi.Iterator.Index;
+            NET_PACKET* packet = pi.GetPacket();
+            packet->FragmentIndex = fi.GetIndex();
             packet->FragmentCount = 1;
+            packet->Layout = {};
 
-            NetPacketIteratorAdvance(&pi);
-            NetFragmentIteratorAdvance(&fi);
+            pi.Advance();
+            fi.Advance();
         }
         else
         {
@@ -113,57 +115,46 @@ void NcmRxQueue::Advance()
         }
     }
 
-    NetFragmentIteratorSet(&fi);
-    NetPacketIteratorSet(&pi);
+    pi.Set();
 }
 
 _Use_decl_annotations_
 bool
 NcmRxQueue::MatchPacketFilter(
-    _In_reads_bytes_(frameSize) UCHAR const* frame,
-    _In_ size_t frameSize)
+    UINT8 const* frame) const
 {
-    UINT8 const* header = (UINT8 const*) frame;
     bool match = false;
 
-    if (*header & 1)
+    if (*frame & 1)
     {
-        if (*header == 0xff)
+        if (*frame == 0xff)
         {
             if (m_NcmAdapter->m_PacketFilters & (NDIS_PACKET_TYPE_BROADCAST | NDIS_PACKET_TYPE_PROMISCUOUS))
             {
                 //broacast
                 match = true;
-                m_NcmAdapter->m_Stats.ifHCInBroadcastPkts++;
-                m_NcmAdapter->m_Stats.ifHCInBroadcastOctets += frameSize;
             }
         }
         else if (m_NcmAdapter->m_PacketFilters & (NDIS_PACKET_TYPE_ALL_MULTICAST | NDIS_PACKET_TYPE_PROMISCUOUS))
         {
             //multicast
             match = true;
-            m_NcmAdapter->m_Stats.ifHCInMulticastPkts++;
-            m_NcmAdapter->m_Stats.ifHCInMulticastOctets += frameSize;
         }
     }
     else if (((m_NcmAdapter->m_PacketFilters & NDIS_PACKET_TYPE_PROMISCUOUS) != 0) ||
               (((m_NcmAdapter->m_PacketFilters & NDIS_PACKET_TYPE_DIRECTED) != 0) &&
-               (RtlEqualMemory(header, m_NcmAdapter->m_CurrentMacAddress.Address, ETH_LENGTH_OF_ADDRESS))))
+               (RtlEqualMemory(frame, m_NcmAdapter->m_CurrentMacAddress.Address, ETH_LENGTH_OF_ADDRESS))))
     {
         //unicast
         match = true;
-        m_NcmAdapter->m_Stats.ifHCInUcastPkts++;
-        m_NcmAdapter->m_Stats.ifHCInUcastOctets += frameSize;
     }
 
     return match;
 }
 
-
-_Use_decl_annotations_
 NTSTATUS
 NcmRxQueue::GetNextFrame(
-    _Outptr_result_buffer_(frameSize) PUCHAR* frame,
+    _Outptr_result_buffer_(*frameSize) PUCHAR* frame,
     _Out_ size_t* frameSize)
 {
     NTSTATUS status = STATUS_UNSUCCESSFUL;
@@ -213,11 +204,10 @@ NcmRxQueue::GetNextFrame(
                 *frameSize > m_NcmAdapter->m_Parameters.MaxDatagramSize)
             {
                 // bad datagram, skip
-                m_NcmAdapter->m_Stats.ifInErrors++;
                 continue;
             }
 
-            if (MatchPacketFilter(*frame, *frameSize))
+            if (MatchPacketFilter(*frame))
             {
                 // valid datagram, return
                 status = STATUS_SUCCESS;
@@ -243,24 +233,23 @@ NcmRxQueue::GetNextFrame(
     return status;
 }
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 void NcmRxQueue::Start()
 {
     (void) m_NcmAdapter->m_UsbNcmDeviceCallbacks->EvtUsbNcmStartReceive(m_NcmAdapter->GetWdfDevice());
 }
 
-PAGED
+PAGEDX
+_Use_decl_annotations_
+void NcmRxQueue::Stop()
+{
+    (void) m_NcmAdapter->m_UsbNcmDeviceCallbacks->EvtUsbNcmStopReceive(m_NcmAdapter->GetWdfDevice());
+}
+
+NONPAGEDX
 _Use_decl_annotations_
 void NcmRxQueue::Cancel()
 {
-    (void) m_NcmAdapter->m_UsbNcmDeviceCallbacks->EvtUsbNcmStopReceive(m_NcmAdapter->GetWdfDevice());
-
-    NET_RING_PACKET_ITERATOR pi = NetRingGetAllPackets(m_Rings);
-    NetPacketIteratorAdvanceToTheEnd(&pi);
-    NetPacketIteratorSet(&pi);
-
-    NET_RING_FRAGMENT_ITERATOR fi = NetRingGetAllFragments(m_Rings);
-    NetFragmentIteratorAdvanceToTheEnd(&fi);
-    NetFragmentIteratorSet(&fi);
+    NcmReturnAllPacketsAndFragments(&m_OsQueue);
 }

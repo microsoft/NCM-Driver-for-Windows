@@ -5,8 +5,7 @@
 #include <ntddk.h>
 #include <wdf.h>
 #include <netadaptercx.h>
-#include <preview/netringiterator.h>
-#include <NetPacketLibrary.h>
+#include "ncmringiterator.h"
 #include "trace.h"
 #include "ncm.h"
 #include "ntb.h"
@@ -121,15 +120,14 @@ public:
     }
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    NTSTATUS SetNextDatagram(_In_ NET_RING_PACKET_ITERATOR* pi,
-                             _Inout_ NDIS_STATISTICS_INFO* stats)
+    NTSTATUS CopyNextDatagram(_In_ NcmPacketIterator* pi)
     {
         if (m_CurrentNdpDatagramCount >= m_NtbMaxDatagrams)
         {
             return STATUS_BUFFER_TOO_SMALL;
         }
 
-        size_t datagramLength = GetTxPacketDataLength(pi);
+        size_t datagramLength = NcmGetPacketDataLength(pi);
 
         //
         // NCM Rev 1.0 (Errata 1) 3.3.4
@@ -168,26 +166,7 @@ public:
 
         PUCHAR datagram = m_Buffer + datagramOffset;
 
-        if (*datagram & 1)
-        {
-            if (*datagram == 0xff) // broadcast
-            {
-                stats->ifHCOutBroadcastPkts++;
-                stats->ifHCOutBroadcastOctets += datagramLength;
-            }
-            else // multicast
-            {
-                stats->ifHCOutMulticastPkts++;
-                stats->ifHCOutMulticastOctets += datagramLength;
-            }
-        }
-        else // unicast
-        {
-            stats->ifHCOutUcastPkts++;
-            stats->ifHCOutUcastOctets += datagramLength;
-        }
-
-        CopyTxPacketDataToBuffer(datagram, pi, datagramLength);
+        NcmCopyPacketDataToBuffer(datagram, pi, datagramLength);
 
         m_DatagramPointerTable[m_CurrentNdpDatagramCount].DatagramIndex = (PTR_SIZE)datagramOffset;
         m_DatagramPointerTable[m_CurrentNdpDatagramCount].DatagramLength = (PTR_SIZE)datagramLength;
@@ -243,7 +222,7 @@ public:
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
     NTSTATUS GetNextDatagram(
-        _Outptr_result_buffer_(datagramBufferSize) PUCHAR* datagramBuffer,
+        _Outptr_result_buffer_(*datagramBufferSize) PUCHAR* datagramBuffer,
         _Out_ size_t* datagramBufferSize)
     {
         if (m_CurrentNdpDatagramIndex == m_CurrentNdpDatagramCount)
@@ -421,7 +400,7 @@ NcmTransferBlock<
     NDP32_SIGNATURE,
     NDP32_CRC_SIGNATURE> NcmTransferBlock32;
 
-PAGED
+PAGEDX
 _Use_decl_annotations_
 NTSTATUS
 NcmTransferBlockCreate(
@@ -501,18 +480,17 @@ NcmTransferBlockReInitializeBuffer(
 
 _Use_decl_annotations_
 NTSTATUS
-NcmTransferBlockSetNextDatagram(
+NcmTransferBlockCopyNextDatagram(
     _In_ NTB_HANDLE ntbHandle,
-    _In_ NET_RING_PACKET_ITERATOR* pi,
-    _Inout_ NDIS_STATISTICS_INFO* stats)
+    _In_ NcmPacketIterator* pi)
 {
     if (((NcmTransferBlock16*) ntbHandle)->m_Is32bitNtb)
     {
-        return ((NcmTransferBlock32*) ntbHandle)->SetNextDatagram(pi, stats);
+        return ((NcmTransferBlock32*) ntbHandle)->CopyNextDatagram(pi);
     }
     else
     {
-        return ((NcmTransferBlock16*) ntbHandle)->SetNextDatagram(pi, stats);
+        return ((NcmTransferBlock16*) ntbHandle)->CopyNextDatagram(pi);
     }
 }
 
@@ -536,7 +514,7 @@ _Use_decl_annotations_
 NTSTATUS
 NcmTransferBlockGetNextDatagram(
     _In_ NTB_HANDLE ntbHandle,
-    _Outptr_result_buffer_(datagramBufferSize) PUCHAR* datagramBuffer,
+    _Outptr_result_buffer_(*datagramBufferSize) PUCHAR* datagramBuffer,
     _Out_ size_t* datagramBufferSize)
 {
     if (((NcmTransferBlock16*) ntbHandle)->m_Is32bitNtb)
