@@ -1,6 +1,6 @@
 # The NCM Driver for Windows
 
-These sample codes are the basis of the actual implementation of the NCM drivers shipped with Windows. They provide examples of how to write a [WDF NetAdapterCx NIC driver](https://github.com/Microsoft/Network-Adapter-Class-Extension) for USB based NICs. 
+These sample codes are the basis of the actual implementation of the NCM drivers officially shipped with Windows 11. They provide examples of how to write a [WDF NetAdapterCx NIC driver](https://github.com/Microsoft/Network-Adapter-Class-Extension) for USB based NICs. 
 
 Furthermore, they are good references for understanding the behaviors and the features provided by the Windows NCM host driver, and how it interoperates with other NCM compatible function devices.   
 

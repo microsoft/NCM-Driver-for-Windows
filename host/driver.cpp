@@ -11,7 +11,8 @@
 #pragma alloc_text (PAGE, UsbNcmHostEvtDeviceReleaseHardware)
 #endif
 
-ULONG g_AdapterVendorId = 0x00155dee;
+ULONG
+    g_AdapterVendorId = 0x00155dee;
 
 NTSTATUS
 DriverEntry(
@@ -23,27 +24,23 @@ DriverEntry(
     WDF_DRIVER_CONFIG config;
     WDF_OBJECT_ATTRIBUTES attributes;
 
-    //
     // Initialize WPP Tracing
-    //
     WPP_INIT_TRACING(DriverObject, RegistryPath);
 
     FuncEntry(USBNCM_HOST);
 
-    //
     // Register a cleanup callback so that we can call WPP_CLEANUP when
     // the framework driver object is deleted during driver unload.
-    //
     WDF_OBJECT_ATTRIBUTES_INIT(&attributes);
     attributes.EvtCleanupCallback = UsbNcmHostEvtDriverContextCleanup;
     WDF_DRIVER_CONFIG_INIT(&config, UsbNcmHostEvtDeviceAdd);
 
-    status = WdfDriverCreate(DriverObject,
-                             RegistryPath,
-                             &attributes,
-                             &config,
-                             WDF_NO_HANDLE
-    );
+    status = WdfDriverCreate(
+        DriverObject,
+        RegistryPath,
+        &attributes,
+        &config,
+        WDF_NO_HANDLE);
 
     if (!NT_SUCCESS(status))
     {
@@ -69,7 +66,7 @@ UsbNcmHostEvtDriverContextCleanup(
 _Use_decl_annotations_
 NTSTATUS
 UsbNcmHostEvtDeviceAdd(
-    _In_    WDFDRIVER,
+    _In_ WDFDRIVER,
     _Inout_ PWDFDEVICE_INIT DeviceInit
 )
 {
@@ -82,17 +79,16 @@ UsbNcmHostEvtDeviceAdd(
     NCM_RETURN_IF_NOT_NT_SUCCESS_MSG(
         NetDeviceInitConfig(DeviceInit),
         "NetDeviceInitConfig failed");
-    //
+
     // Set pnp power callbacks
-    //
     WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&pnpPowerCallbacks);
     pnpPowerCallbacks.EvtDevicePrepareHardware = UsbNcmHostEvtDevicePrepareHardware;
     pnpPowerCallbacks.EvtDeviceReleaseHardware = UsbNcmHostEvtDeviceReleaseHardware;
+    pnpPowerCallbacks.EvtDeviceD0Entry = UsbNcmHostEvtDeviceD0Entry;
+    pnpPowerCallbacks.EvtDeviceD0Exit = UsbNcmHostEvtDeviceD0Exit;
     WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit, &pnpPowerCallbacks);
 
-    //
     // Create WDF device
-    //
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&attribs, UsbNcmHostDevice);
     NCM_RETURN_IF_NOT_NT_SUCCESS_MSG(
         WdfDeviceCreate(&DeviceInit, &attribs, &wdfDevice),
@@ -111,7 +107,7 @@ UsbNcmHostEvtDevicePrepareHardware(
     _In_ WDFCMRESLIST
 )
 {
-    UsbNcmHostDevice* hostDevice = NcmGetHostDeviceFromHandle(Device);
+    UsbNcmHostDevice * hostDevice = NcmGetHostDeviceFromHandle(Device);
 
     NCM_RETURN_IF_NOT_NT_SUCCESS(hostDevice->InitializeDevice());
     NCM_RETURN_IF_NOT_NT_SUCCESS(hostDevice->CreateAdapter());
@@ -125,9 +121,31 @@ UsbNcmHostEvtDeviceReleaseHardware(
     _In_ WDFCMRESLIST
 )
 {
-    UsbNcmHostDevice* ncmDevice = NcmGetHostDeviceFromHandle(Device);
+    UsbNcmHostDevice * ncmDevice = NcmGetHostDeviceFromHandle(Device);
 
     ncmDevice->DestroyAdapter();
 
     return STATUS_SUCCESS;
+}
+
+NTSTATUS
+UsbNcmHostEvtDeviceD0Entry(
+    _In_ WDFDEVICE Device,
+    _In_ WDF_POWER_DEVICE_STATE PreviousState
+)
+{
+    UsbNcmHostDevice * ncmDevice = NcmGetHostDeviceFromHandle(Device);
+
+    return ncmDevice->EnterWorkingState(PreviousState);
+}
+
+NTSTATUS
+UsbNcmHostEvtDeviceD0Exit(
+    _In_ WDFDEVICE Device,
+    _In_ WDF_POWER_DEVICE_STATE
+)
+{
+    UsbNcmHostDevice * ncmDevice = NcmGetHostDeviceFromHandle(Device);
+
+    return ncmDevice->LeaveWorkingState();
 }

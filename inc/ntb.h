@@ -19,7 +19,8 @@ NcmTransferBlockCreate(
     _In_ UINT16 ndpAlignment,
     _In_ UINT16 ndpDivisor,
     _In_ UINT16 ndpPayloadRemainder,
-    _Out_ NTB_HANDLE* ntbHandle);
+    _Out_ NTB_HANDLE * ntbHandle
+);
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 NTSTATUS
@@ -27,23 +28,28 @@ NcmTransferBlockReInitializeBuffer(
     _In_ NTB_HANDLE ntbHandle,
     _In_ const PUCHAR buffer,
     _In_ const size_t bufferLength,
-    _In_ NTB_DIRECTION direction);
+    _In_ NTB_DIRECTION direction
+);
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 NTSTATUS
 NcmTransferBlockCopyNextDatagram(
     _In_ NTB_HANDLE ntbHandle,
-    _In_ NcmPacketIterator* pi);
+    _In_ NcmPacketIterator * pi
+);
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
-NcmTransferBlockSetNdp(_In_ NTB_HANDLE ntbHandle,
-                       _Out_ size_t* transferLength);
+NcmTransferBlockSetNdp(
+    _In_ NTB_HANDLE ntbHandle,
+    _Out_ size_t * transferLength
+);
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 NTSTATUS
 NcmTransferBlockGetNextDatagram(
     _In_ NTB_HANDLE ntbHandle,
-    _Outptr_result_buffer_(*datagramBufferSize) PUCHAR* datagramBuffer,
-    _Out_ size_t* datagramBufferSize);
+    _Outptr_result_buffer_(*datagramBufferSize) PUCHAR * datagramBuffer,
+    _Out_ size_t * datagramBufferSize
+);
 
