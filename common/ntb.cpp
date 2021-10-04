@@ -30,42 +30,73 @@ template <
     typename PTR_SIZE,      //16 bit or 32 bit
     NTH_SIG nth_sig,
     NDP_SIG ndp_sig,
-    NDP_SIG ndp_crc_sig> class NcmTransferBlock
+    NDP_SIG ndp_crc_sig
+>
+class NcmTransferBlock
 {
+
 public:
-    BOOLEAN             m_Is32bitNtb = FALSE;
+    BOOLEAN
+        m_Is32bitNtb = FALSE;
 
 private:
 
     // the following fields are initialized once
-    UINT16              m_Sequence = 0;
-    UINT16              m_NtbMaxDatagrams = 0;
-    UINT16              m_NdpAlignment = 0;
-    UINT16              m_NdpDivisor = 0;
-    UINT16              m_NdpPayloadRemainder = 0;
-    WDFMEMORY           m_DatagramPointerTableMemory = nullptr;
+    UINT16
+        m_Sequence = 0;
+
+    UINT16
+        m_NtbMaxDatagrams = 0;
+    UINT16
+        m_NdpAlignment = 0;
+
+    UINT16
+        m_NdpDivisor = 0;
+    UINT16
+        m_NdpPayloadRemainder = 0;
+    WDFMEMORY
+        m_DatagramPointerTableMemory = nullptr;
 
     // the following fields are reinitialized everytime when
     // a new buffer is used by calling InitializeBuffer
-    PUCHAR              m_Buffer = nullptr;
-    size_t              m_BufferLength = 0;
-    UINT32              m_BlockLength = 0;
-    UINT32              m_CurrentNdpIndex = 0;
-    UINT32              m_NextNdpIndex = 0;
-    UINT32              m_CurrentNdpDatagramIndex = 0;
-    UINT32              m_CurrentNdpDatagramCount = 0;
-    size_t              m_CurrentBufferOffset = 0;
-    DPE*                m_DatagramPointerTable = nullptr;
+    PUCHAR
+        m_Buffer = nullptr;
+
+    size_t
+        m_BufferLength = 0;
+    UINT32
+        m_BlockLength = 0;
+
+    UINT32
+        m_CurrentNdpIndex = 0;
+
+    UINT32
+        m_NextNdpIndex = 0;
+
+    UINT32
+        m_CurrentNdpDatagramIndex = 0;
+
+    UINT32
+        m_CurrentNdpDatagramCount = 0;
+
+    size_t
+        m_CurrentBufferOffset = 0;
+
+    DPE *
+        m_DatagramPointerTable = nullptr;
 
 public:
 
     PAGED
-    NTSTATUS InitializeNtb(_In_ NETPACKETQUEUE netPacketQueue,
-                           _In_ UINT16 ntbMaxDatagrams,
-                           _In_ UINT16 ndpAlignment,
-                           _In_ UINT16 ndpDivisor,
-                           _In_ UINT16 ndpPayloadRemainder,
-                           _In_ bool use32bitNtb)
+    NTSTATUS
+    InitializeNtb(
+        _In_ NETPACKETQUEUE netPacketQueue,
+        _In_ UINT16 ntbMaxDatagrams,
+        _In_ UINT16 ndpAlignment,
+        _In_ UINT16 ndpDivisor,
+        _In_ UINT16 ndpPayloadRemainder,
+        _In_ bool use32bitNtb
+    )
     {
         m_Sequence = 0;
 
@@ -82,21 +113,25 @@ public:
         objectAttribs.ParentObject = netPacketQueue;
 
         NCM_RETURN_IF_NOT_NT_SUCCESS_MSG(
-            WdfMemoryCreate(&objectAttribs,
-                            NonPagedPoolNx,
-                            0,
-                            sizeof(DPE) * (m_NtbMaxDatagrams + 1),
-                            &m_DatagramPointerTableMemory,
-                            nullptr),
+            WdfMemoryCreate(
+                &objectAttribs,
+                NonPagedPoolNx,
+                0,
+                sizeof(DPE) * (m_NtbMaxDatagrams + 1),
+                &m_DatagramPointerTableMemory,
+                nullptr),
             "WdfMemoryCreate failed");
 
         return STATUS_SUCCESS;
     }
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    NTSTATUS ReInitializeBuffer(_In_ const PUCHAR buffer,
-                                _In_ const size_t bufferLength,
-                                _In_ NTB_DIRECTION direction)
+    NTSTATUS
+    ReInitializeBuffer(
+        _In_ const PUCHAR buffer,
+        _In_ const size_t bufferLength,
+        _In_ NTB_DIRECTION direction
+    )
     {
         m_BlockLength = 0;
         m_CurrentNdpIndex = 0;
@@ -107,20 +142,21 @@ public:
 
         if (direction == NTB_RX)
         {
-            return PrepareToParse(buffer,
-                                  bufferLength);
+            return PrepareToParse(buffer, bufferLength);
         }
         else
         {
-            PrepareToConstruct(buffer,
-                               bufferLength);
+            PrepareToConstruct(buffer, bufferLength);
 
             return STATUS_SUCCESS;
         }
     }
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    NTSTATUS CopyNextDatagram(_In_ NcmPacketIterator* pi)
+    NTSTATUS
+    CopyNextDatagram(
+        _In_ NcmPacketIterator * pi
+    )
     {
         if (m_CurrentNdpDatagramCount >= m_NtbMaxDatagrams)
         {
@@ -129,33 +165,29 @@ public:
 
         size_t datagramLength = NcmGetPacketDataLength(pi);
 
-        //
         // NCM Rev 1.0 (Errata 1) 3.3.4
-        // 
-        // Alignment requirements are met by controlling the location of the payload (the data 
-        // following the Ethernet header in each datagram).  This alignment is specified by 
-        // indicating a constraint as a divisor and a remainder. 
         //
+        // Alignment requirements are met by controlling the location of the payload (the data
+        // following the Ethernet header in each datagram).  This alignment is specified by
+        // indicating a constraint as a divisor and a remainder.
 
         // the new datagram starts at current offset + alignemnt needed
         size_t datagramOffset =
-            ALIGN_UP_BY(m_CurrentBufferOffset + sizeof(ETHERNET_HEADER), m_NdpDivisor)
-            + m_NdpPayloadRemainder - sizeof(ETHERNET_HEADER);
+            ALIGN_UP_BY(m_CurrentBufferOffset + sizeof(ETHERNET_HEADER), m_NdpDivisor) +
+            m_NdpPayloadRemainder -
+            sizeof(ETHERNET_HEADER);
 
-        //
         // NCM Rev 1.0 (Errata 1) 6.2.1
-        // 
-        // NDP alignment modulus for use in NTBs on the OUT pipe
         //
+        // NDP alignment modulus for use in NTBs on the OUT pipe
 
         // NDP offset starts after the new datagram + alignment needed
         size_t ndpOffset = ALIGN_UP_BY(datagramOffset + datagramLength, m_NdpAlignment);
 
-        //
         // NCM Rev 1.0 (Errata 1) 3.7
-        // 
-        // that every NDP shall end with a Null entry
         //
+        // that every NDP shall end with a Null entry
+
         size_t totalNtbSizeNeeded =
             ndpOffset + sizeof(NDP) + (m_CurrentNdpDatagramCount + 1) * sizeof(DPE);
 
@@ -178,38 +210,38 @@ public:
     }
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    void SetNdp(_Out_ size_t* transferLength)
+    void
+    SetNdp(
+        _Out_ size_t * transferLength
+    )
     {
         NT_FRE_ASSERT(m_CurrentNdpDatagramCount > 0);
 
-        //
         // NCM Rev 1.0 (Errata 1) 6.2.1
-        // 
-        // NDP alignment modulus for use in NTBs on the OUT pipe
         //
+        // NDP alignment modulus for use in NTBs on the OUT pipe
 
         // NDP offset starts after the new datagram + alignment needed
         size_t ndpOffset = ALIGN_UP_BY(m_CurrentBufferOffset, m_NdpAlignment);
 
-        //
         // NCM Rev 1.0 (Errata 1) 3.7
-        // 
-        // that every NDP shall end with a Null entry
         //
+        // that every NDP shall end with a Null entry
 
         // including the null teminitor entry
         size_t datagramPointerTableSize = (m_CurrentNdpDatagramCount + 1) * sizeof(DPE);
 
-        NDP& ndpHeader = (NDP&) *(m_Buffer + ndpOffset);
+        NDP & ndpHeader = (NDP &) *(m_Buffer + ndpOffset);
         ndpHeader.Signature = ndp_sig;
         ndpHeader.Length = (UINT16)(sizeof(NDP) + datagramPointerTableSize);
         ndpHeader.NextNdpIndex = 0;
 
-        RtlCopyMemory(m_Buffer + ndpOffset + sizeof(NDP),
-                      m_DatagramPointerTable,
-                      datagramPointerTableSize);
+        RtlCopyMemory(
+            m_Buffer + ndpOffset + sizeof(NDP),
+            m_DatagramPointerTable,
+            datagramPointerTableSize);
 
-        NTH& ntbHeader = (NTH&)*m_Buffer;
+        NTH & ntbHeader = (NTH &)*m_Buffer;
 
         ntbHeader.Signature = nth_sig;
         ntbHeader.HeaderLength = sizeof(NTH);
@@ -221,9 +253,11 @@ public:
     }
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    NTSTATUS GetNextDatagram(
-        _Outptr_result_buffer_(*datagramBufferSize) PUCHAR* datagramBuffer,
-        _Out_ size_t* datagramBufferSize)
+    NTSTATUS
+    GetNextDatagram(
+        _Outptr_result_buffer_(*datagramBufferSize) PUCHAR * datagramBuffer,
+        _Out_ size_t * datagramBufferSize
+    )
     {
         if (m_CurrentNdpDatagramIndex == m_CurrentNdpDatagramCount)
         {
@@ -235,8 +269,8 @@ public:
             }
         }
 
-        const DPE& datagram =
-            (const DPE&) *(m_Buffer + m_CurrentNdpIndex + sizeof(NDP) + m_CurrentNdpDatagramIndex * sizeof(DPE));
+        const DPE & datagram =
+            (const DPE &) *(m_Buffer + m_CurrentNdpIndex + sizeof(NDP) + m_CurrentNdpDatagramIndex * sizeof(DPE));
 
         *datagramBuffer = m_Buffer + datagram.DatagramIndex;
         *datagramBufferSize = datagram.DatagramLength;
@@ -248,13 +282,16 @@ public:
 private:
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    NTSTATUS PrepareToParse(_In_ const PUCHAR buffer,
-                            _In_ const size_t bufferLength)
+    NTSTATUS
+    PrepareToParse(
+        _In_ const PUCHAR buffer,
+        _In_ const size_t bufferLength
+    )
     {
         m_Buffer = buffer;
         m_BufferLength = bufferLength;
 
-        const NTH& ntbHeader = (const NTH&) *m_Buffer;
+        const NTH & ntbHeader = (const NTH &) *m_Buffer;
 
         if ((m_BufferLength >= sizeof(NTH)) &&
             (nth_sig == ntbHeader.Signature))
@@ -275,8 +312,9 @@ private:
             }
             else
             {
-                m_BlockLength = min(((PTR_SIZE) ~((PTR_SIZE) 0)), // MAXUINT16 or MAXUINT32
-                    (PTR_SIZE) m_BufferLength);
+                m_BlockLength = min(
+                    ((PTR_SIZE)~((PTR_SIZE)0)), // MAXUINT16 or MAXUINT32
+                    (PTR_SIZE)m_BufferLength);
             }
 
             m_NextNdpIndex = ntbHeader.NdpIndex;
@@ -291,8 +329,11 @@ private:
     };
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    void PrepareToConstruct(_In_ const PUCHAR buffer,
-                            _In_ const size_t bufferLength)
+    void
+    PrepareToConstruct(
+        _In_ const PUCHAR buffer,
+        _In_ const size_t bufferLength
+    )
     {
         m_Buffer = buffer;
         m_BufferLength = bufferLength;
@@ -301,12 +342,14 @@ private:
         m_CurrentBufferOffset = sizeof(NTH);
 
         size_t size;
-        m_DatagramPointerTable = (DPE*) WdfMemoryGetBuffer(m_DatagramPointerTableMemory, &size);
+        m_DatagramPointerTable = (DPE *)WdfMemoryGetBuffer(m_DatagramPointerTableMemory, &size);
         RtlZeroMemory(m_DatagramPointerTable, size);
     }
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    NTSTATUS GetNextNdp()
+    NTSTATUS GetNextNdp(
+        void
+    )
     {
         const size_t minDptSize = sizeof(NDP) + 2 * sizeof(DPE);
 
@@ -324,7 +367,7 @@ private:
             NCM_RETURN_IF_NOT_NT_SUCCESS_MSG(STATUS_BAD_DATA, "Bad NDP size #1");
         }
 
-        const NDP& ndpHeader = (const NDP&) *(m_Buffer + m_NextNdpIndex);
+        const NDP & ndpHeader = (const NDP &) *(m_Buffer + m_NextNdpIndex);
 
         if (ndp_sig != ndpHeader.Signature)
         {
@@ -349,11 +392,9 @@ private:
         // note: if any invalid entries are found, the entire table, and any subsequent tables, are rejected
         UINT32 currentNdpDatagramCount = 0;
 
-        for (size_t offset = sizeof(NDP);
-             offset < ndpHeader.Length;
-             offset += sizeof(DPE))
+        for (size_t offset = sizeof(NDP); offset < ndpHeader.Length; offset += sizeof(DPE))
         {
-            const DPE& datagram = (const DPE&) *(m_Buffer + m_NextNdpIndex + offset);
+            const DPE & datagram = (const DPE &) *(m_Buffer + m_NextNdpIndex + offset);
 
             if (datagram.DatagramIndex == 0 || datagram.DatagramLength == 0)
             {
@@ -388,7 +429,9 @@ NcmTransferBlock<
     UINT16,
     NTH16_SIGNATURE,
     NDP16_SIGNATURE,
-    NDP16_CRC_SIGNATURE> NcmTransferBlock16;
+    NDP16_CRC_SIGNATURE
+>
+    NcmTransferBlock16;
 
 typedef
 NcmTransferBlock<
@@ -398,7 +441,9 @@ NcmTransferBlock<
     UINT32,
     NTH32_SIGNATURE,
     NDP32_SIGNATURE,
-    NDP32_CRC_SIGNATURE> NcmTransferBlock32;
+    NDP32_CRC_SIGNATURE
+>
+    NcmTransferBlock32;
 
 PAGEDX
 _Use_decl_annotations_
@@ -410,11 +455,12 @@ NcmTransferBlockCreate(
     _In_ UINT16 ndpAlignment,
     _In_ UINT16 ndpDivisor,
     _In_ UINT16 ndpPayloadRemainder,
-    _Out_ NTB_HANDLE* ntbHandle)
+    _Out_ NTB_HANDLE * ntbHandle
+)
 {
-    WDF_OBJECT_ATTRIBUTES  objectAttribs;
-    WDFMEMORY              wdfMemory;
-    PVOID                  handle;
+    WDF_OBJECT_ATTRIBUTES objectAttribs;
+    WDFMEMORY wdfMemory;
+    PVOID handle;
 
     *ntbHandle = nullptr;
 
@@ -422,36 +468,39 @@ NcmTransferBlockCreate(
     objectAttribs.ParentObject = netPacketQueue;
 
     NCM_RETURN_IF_NOT_NT_SUCCESS_MSG(
-        WdfMemoryCreate(&objectAttribs,
-                        NonPagedPoolNx,
-                        0,
-                        use32bitNtb ? sizeof(NcmTransferBlock32) : sizeof(NcmTransferBlock16),
-                        &wdfMemory,
-                        (PVOID*) &handle),
+        WdfMemoryCreate(
+            &objectAttribs,
+            NonPagedPoolNx,
+            0,
+            use32bitNtb ? sizeof(NcmTransferBlock32) : sizeof(NcmTransferBlock16),
+            &wdfMemory,
+            (PVOID *) &handle),
         "WdfMemoryCreate failed");
 
     if (use32bitNtb)
     {
         NCM_RETURN_IF_NOT_NT_SUCCESS(
-            ((NcmTransferBlock32*) handle)->InitializeNtb(netPacketQueue,
-                                                          ntbMaxDatagrams,
-                                                          ndpAlignment,
-                                                          ndpDivisor,
-                                                          ndpPayloadRemainder,
-                                                          true));
+            ((NcmTransferBlock32 *)handle)->InitializeNtb(
+                netPacketQueue,
+                ntbMaxDatagrams,
+                ndpAlignment,
+                ndpDivisor,
+                ndpPayloadRemainder,
+                true));
     }
     else
     {
         NCM_RETURN_IF_NOT_NT_SUCCESS(
-            ((NcmTransferBlock16*) handle)->InitializeNtb(netPacketQueue,
-                                                          ntbMaxDatagrams,
-                                                          ndpAlignment,
-                                                          ndpDivisor,
-                                                          ndpPayloadRemainder,
-                                                          false));
+            ((NcmTransferBlock16 *)handle)->InitializeNtb(
+                netPacketQueue,
+                ntbMaxDatagrams,
+                ndpAlignment,
+                ndpDivisor,
+                ndpPayloadRemainder,
+                false));
     }
 
-    *ntbHandle = (NTB_HANDLE) handle;
+    *ntbHandle = (NTB_HANDLE)handle;
 
     return STATUS_SUCCESS;
 }
@@ -462,19 +511,22 @@ NcmTransferBlockReInitializeBuffer(
     _In_ NTB_HANDLE ntbHandle,
     _In_ const PUCHAR buffer,
     _In_ const size_t bufferLength,
-    _In_ NTB_DIRECTION direction)
+    _In_ NTB_DIRECTION direction
+)
 {
-    if (((NcmTransferBlock16*) ntbHandle)->m_Is32bitNtb)
+    if (((NcmTransferBlock16 *)ntbHandle)->m_Is32bitNtb)
     {
-        return ((NcmTransferBlock32*) ntbHandle)->ReInitializeBuffer(buffer,
-                                                                     bufferLength,
-                                                                     direction);
+        return ((NcmTransferBlock32 *)ntbHandle)->ReInitializeBuffer(
+            buffer,
+            bufferLength,
+            direction);
     }
     else
     {
-        return ((NcmTransferBlock16*) ntbHandle)->ReInitializeBuffer(buffer,
-                                                                     bufferLength,
-                                                                     direction);
+        return ((NcmTransferBlock16 *)ntbHandle)->ReInitializeBuffer(
+            buffer,
+            bufferLength,
+            direction);
     }
 }
 
@@ -482,15 +534,16 @@ _Use_decl_annotations_
 NTSTATUS
 NcmTransferBlockCopyNextDatagram(
     _In_ NTB_HANDLE ntbHandle,
-    _In_ NcmPacketIterator* pi)
+    _In_ NcmPacketIterator * pi
+)
 {
-    if (((NcmTransferBlock16*) ntbHandle)->m_Is32bitNtb)
+    if (((NcmTransferBlock16 *)ntbHandle)->m_Is32bitNtb)
     {
-        return ((NcmTransferBlock32*) ntbHandle)->CopyNextDatagram(pi);
+        return ((NcmTransferBlock32 *)ntbHandle)->CopyNextDatagram(pi);
     }
     else
     {
-        return ((NcmTransferBlock16*) ntbHandle)->CopyNextDatagram(pi);
+        return ((NcmTransferBlock16 *)ntbHandle)->CopyNextDatagram(pi);
     }
 }
 
@@ -498,15 +551,16 @@ _Use_decl_annotations_
 void
 NcmTransferBlockSetNdp(
     _In_ NTB_HANDLE ntbHandle,
-    _Out_ size_t* transferLength)
+    _Out_ size_t * transferLength
+)
 {
-    if (((NcmTransferBlock16*) ntbHandle)->m_Is32bitNtb)
+    if (((NcmTransferBlock16 *)ntbHandle)->m_Is32bitNtb)
     {
-        ((NcmTransferBlock32*) ntbHandle)->SetNdp(transferLength);
+        ((NcmTransferBlock32 *)ntbHandle)->SetNdp(transferLength);
     }
     else
     {
-        ((NcmTransferBlock16*) ntbHandle)->SetNdp(transferLength);
+        ((NcmTransferBlock16 *)ntbHandle)->SetNdp(transferLength);
     }
 }
 
@@ -514,17 +568,20 @@ _Use_decl_annotations_
 NTSTATUS
 NcmTransferBlockGetNextDatagram(
     _In_ NTB_HANDLE ntbHandle,
-    _Outptr_result_buffer_(*datagramBufferSize) PUCHAR* datagramBuffer,
-    _Out_ size_t* datagramBufferSize)
+    _Outptr_result_buffer_(*datagramBufferSize) PUCHAR * datagramBuffer,
+    _Out_ size_t * datagramBufferSize
+)
 {
-    if (((NcmTransferBlock16*) ntbHandle)->m_Is32bitNtb)
+    if (((NcmTransferBlock16 *)ntbHandle)->m_Is32bitNtb)
     {
-        return ((NcmTransferBlock32*) ntbHandle)->GetNextDatagram(datagramBuffer,
-                                                                  datagramBufferSize);
+        return ((NcmTransferBlock32 *)ntbHandle)->GetNextDatagram(
+            datagramBuffer,
+            datagramBufferSize);
     }
     else
     {
-        return ((NcmTransferBlock16*) ntbHandle)->GetNextDatagram(datagramBuffer,
-                                                                  datagramBufferSize);
+        return ((NcmTransferBlock16 *)ntbHandle)->GetNextDatagram(
+            datagramBuffer,
+            datagramBufferSize);
     }
 }

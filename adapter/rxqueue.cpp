@@ -4,7 +4,10 @@
 #include "rxqueue.tmh"
 
 _Use_decl_annotations_
-NcmRxQueue* NcmRxQueue::Get(_In_ NETPACKETQUEUE queue)
+NcmRxQueue *
+NcmRxQueue::Get(
+    _In_ NETPACKETQUEUE queue
+)
 {
     return NcmGetRxQueueFromHandle(queue);
 }
@@ -14,7 +17,8 @@ _Use_decl_annotations_
 NTSTATUS
 NcmRxQueue::EvtCreateRxQueue(
     _In_ NETADAPTER netAdapter,
-    _Inout_ NETRXQUEUE_INIT * netRxQueueInit)
+    _Inout_ NETRXQUEUE_INIT * netRxQueueInit
+)
 {
     NET_PACKET_QUEUE_CONFIG queueConfig;
     WDF_OBJECT_ATTRIBUTES rxQueueAttributes;
@@ -22,34 +26,35 @@ NcmRxQueue::EvtCreateRxQueue(
 
     PAGED_CODE();
 
-    NcmAdapter* ncmAdapter = NcmGetAdapterFromHandle(netAdapter);
+    NcmAdapter * ncmAdapter = NcmGetAdapterFromHandle(netAdapter);
 
-    NET_PACKET_QUEUE_CONFIG_INIT(&queueConfig,
-                                 EvtAdvance,
-                                 EvtSetNotificationEnabled,
-                                 EvtCancel);
+    NET_PACKET_QUEUE_CONFIG_INIT(
+        &queueConfig,
+        EvtAdvance,
+        EvtSetNotificationEnabled,
+        EvtCancel);
 
     queueConfig.EvtStart = EvtStart;
     queueConfig.EvtStop = EvtStop;
 
-    WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&rxQueueAttributes,
-                                            NcmRxQueue);
+    WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(
+        &rxQueueAttributes,
+        NcmRxQueue);
 
     NCM_RETURN_IF_NOT_NT_SUCCESS_MSG(
-        NetRxQueueCreate(netRxQueueInit,
-                         &rxQueueAttributes,
-                         &queueConfig,
-                         &queue),
+        NetRxQueueCreate(
+            netRxQueueInit,
+            &rxQueueAttributes,
+            &queueConfig,
+            &queue),
         "NetRxQueueCreate failed");
 
-    //
     // Use the inplacement new and invoke the constructor on the
     // context memory space allocated for queue instance
-    //
-
-    NcmRxQueue* rxQueue = 
-        new (NcmGetRxQueueFromHandle(queue)) NcmRxQueue(ncmAdapter,
-                                                        queue);
+    NcmRxQueue * rxQueue =
+        new (NcmGetRxQueueFromHandle(queue)) NcmRxQueue(
+            ncmAdapter,
+            queue);
 
     NCM_RETURN_IF_NOT_NT_SUCCESS(rxQueue->InitializeQueue());
 
@@ -59,21 +64,25 @@ NcmRxQueue::EvtCreateRxQueue(
 PAGEDX
 _Use_decl_annotations_
 NTSTATUS
-NcmRxQueue::InitializeQueue()
+NcmRxQueue::InitializeQueue(
+    void
+)
 {
     NCM_RETURN_IF_NOT_NT_SUCCESS(
-        RxBufferQueueCreate(m_NcmAdapter->m_WdfDevice,
-                            m_Queue,
-                            &m_RxBufferQueue));
+        RxBufferQueueCreate(
+            m_NcmAdapter->m_WdfDevice,
+            m_Queue,
+            &m_RxBufferQueue));
 
     NCM_RETURN_IF_NOT_NT_SUCCESS(
-        NcmTransferBlockCreate(m_Queue,
-                               m_NcmAdapter->m_Parameters.Use32BitNtb,
-                               m_NcmAdapter->m_Parameters.TxMaxNtbDatagramCount,
-                               m_NcmAdapter->m_Parameters.TxNdpAlignment,
-                               m_NcmAdapter->m_Parameters.TxNdpDivisor,
-                               m_NcmAdapter->m_Parameters.TxNdpPayloadRemainder,
-                               &m_NtbHandle));
+        NcmTransferBlockCreate(
+            m_Queue,
+            m_NcmAdapter->m_Parameters.Use32BitNtb,
+            m_NcmAdapter->m_Parameters.TxMaxNtbDatagramCount,
+            m_NcmAdapter->m_Parameters.TxNdpAlignment,
+            m_NcmAdapter->m_Parameters.TxNdpDivisor,
+            m_NcmAdapter->m_Parameters.TxNdpPayloadRemainder,
+            &m_NtbHandle));
 
     m_NcmAdapter->m_RxQueue = this;
 
@@ -81,7 +90,10 @@ NcmRxQueue::InitializeQueue()
 }
 
 _Use_decl_annotations_
-void NcmRxQueue::Advance()
+void
+NcmRxQueue::Advance(
+    void
+)
 {
     NcmPacketIterator pi = NcmGetAllPackets(&m_OsQueue);
     NcmFragmentIterator fi = NcmGetAllFragments(&m_OsQueue);
@@ -121,7 +133,8 @@ void NcmRxQueue::Advance()
 _Use_decl_annotations_
 bool
 NcmRxQueue::MatchPacketFilter(
-    UINT8 const* frame) const
+    UINT8 const * frame
+) const
 {
     bool match = false;
 
@@ -154,8 +167,9 @@ NcmRxQueue::MatchPacketFilter(
 
 NTSTATUS
 NcmRxQueue::GetNextFrame(
-    _Outptr_result_buffer_(*frameSize) PUCHAR* frame,
-    _Out_ size_t* frameSize)
+    _Outptr_result_buffer_(*frameSize) PUCHAR * frame,
+    _Out_ size_t * frameSize
+)
 {
     NTSTATUS status = STATUS_UNSUCCESSFUL;
 
@@ -166,15 +180,17 @@ NcmRxQueue::GetNextFrame(
     {
         if (m_RxBufferInProcessing == nullptr)
         {
-            status = RxBufferQueueDequeueBuffer(m_RxBufferQueue,
-                                                &m_RxBufferInProcessing);
+            status = RxBufferQueueDequeueBuffer(
+                m_RxBufferQueue,
+                &m_RxBufferInProcessing);
 
             if (NT_SUCCESS(status))
             {
-                status = NcmTransferBlockReInitializeBuffer(m_NtbHandle, 
-                                                            m_RxBufferInProcessing->Buffer, 
-                                                            m_RxBufferInProcessing->BufferSize, 
-                                                            NTB_RX);
+                status = NcmTransferBlockReInitializeBuffer(
+                    m_NtbHandle,
+                    m_RxBufferInProcessing->Buffer,
+                    m_RxBufferInProcessing->BufferSize,
+                    NTB_RX);
 
                 if (NT_SUCCESS(status))
                 {
@@ -183,8 +199,9 @@ NcmRxQueue::GetNextFrame(
                 else
                 {
                     // Invalid NTB, skip
-                    RxBufferQueueReturnBuffer(m_RxBufferQueue,
-                                              m_RxBufferInProcessing);
+                    RxBufferQueueReturnBuffer(
+                        m_RxBufferQueue,
+                        m_RxBufferInProcessing);
                     m_RxBufferInProcessing = nullptr;
 
                     continue;
@@ -222,8 +239,9 @@ NcmRxQueue::GetNextFrame(
         else
         {
             // no more datagarms from current NTB, get the next NTB
-            RxBufferQueueReturnBuffer(m_RxBufferQueue,
-                                      m_RxBufferInProcessing);
+            RxBufferQueueReturnBuffer(
+                m_RxBufferQueue,
+                m_RxBufferInProcessing);
             m_RxBufferInProcessing = nullptr;
 
             continue;
@@ -235,21 +253,30 @@ NcmRxQueue::GetNextFrame(
 
 PAGEDX
 _Use_decl_annotations_
-void NcmRxQueue::Start()
+void
+NcmRxQueue::Start(
+    void
+)
 {
     (void) m_NcmAdapter->m_UsbNcmDeviceCallbacks->EvtUsbNcmStartReceive(m_NcmAdapter->GetWdfDevice());
 }
 
 PAGEDX
 _Use_decl_annotations_
-void NcmRxQueue::Stop()
+void
+NcmRxQueue::Stop(
+    void
+)
 {
     (void) m_NcmAdapter->m_UsbNcmDeviceCallbacks->EvtUsbNcmStopReceive(m_NcmAdapter->GetWdfDevice());
 }
 
 NONPAGEDX
 _Use_decl_annotations_
-void NcmRxQueue::Cancel()
+void
+NcmRxQueue::Cancel(
+    void
+)
 {
     NcmReturnAllPacketsAndFragments(&m_OsQueue);
 }

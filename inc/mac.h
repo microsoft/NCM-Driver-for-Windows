@@ -29,7 +29,7 @@ static const UINT64 s_MaxMacNumber = 0x000002155dffffff;
 inline
 void
 GenerateMACAddress(
-    _Out_writes_bytes_(ETH_LENGTH_OF_ADDRESS) unsigned char* MacAddress
+    _Out_writes_bytes_(ETH_LENGTH_OF_ADDRESS) unsigned char * MacAddress
 )
 {
     LARGE_INTEGER seed;
@@ -44,7 +44,7 @@ GenerateMACAddress(
 inline
 void
 GetNextMACAddress(
-    _Inout_updates_bytes_(ETH_LENGTH_OF_ADDRESS) unsigned char* MacAddress
+    _Inout_updates_bytes_(ETH_LENGTH_OF_ADDRESS) unsigned char * MacAddress
 )
 {
     UINT64 currMacNumber = MAC_ADDRESS_TO_NUMBER(MacAddress);
@@ -59,14 +59,19 @@ GetNextMACAddress(
 
 class UNIQUE_WDFMEMORY
 {
+
 public:
 
-    UNIQUE_WDFMEMORY()
+    UNIQUE_WDFMEMORY(
+        void
+    )
         : m_WdfMemory(nullptr)
     {
     }
 
-    ~UNIQUE_WDFMEMORY()
+    ~UNIQUE_WDFMEMORY(
+        void
+    )
     {
         if (m_WdfMemory != nullptr)
         {
@@ -76,45 +81,68 @@ public:
         m_WdfMemory = nullptr;
     }
 
-    WDFMEMORY* Address()
+    WDFMEMORY *
+    Address(
+        void
+    )
     {
         NT_FRE_ASSERT(m_WdfMemory == nullptr);
 
         return &m_WdfMemory;
     }
 
-    WDFMEMORY Get()
+    WDFMEMORY
+    Get(
+        void
+    )
     {
         return m_WdfMemory;
     }
 
-    PVOID GetBuffer()
+    PVOID
+    GetBuffer(
+        void
+    )
     {
         return WdfMemoryGetBuffer(m_WdfMemory, nullptr);
     }
 
     WDFMEMORY m_WdfMemory;
+
 };
+
+//ECM spec 5.4
+//The string descriptor holds the 48bit Ethernet MAC address.
+//The Unicode representation of the MAC address is as follows:
+//the first Unicode character represents the high order nibble of the first byte of the MAC address in network byte order.
+//The next character represents the next 4 bits and so on.
+//The Unicode character is chosen from the set of values 30h through 39h and 41h through 46h (0-9 and A-F).
 
 inline
 void
 BytesToHexString(
-    _In_bytecount_(StrLength / sizeof(WCHAR)) const BYTE* Bytes,
+    _In_bytecount_(StrLength / sizeof(WCHAR)) const BYTE * Bytes,
     _In_ ULONG StrLength,
-    _Out_writes_(StrLength) WCHAR* String
+    _Out_writes_(StrLength) WCHAR * String
 )
 {
-    NT_FRE_ASSERT((StrLength % sizeof(WCHAR) == 0) &&
-                  (Bytes != nullptr) &&
-                  (String != nullptr));
+    NT_FRE_ASSERT(
+        (StrLength % sizeof(WCHAR) == 0) &&
+        (Bytes != nullptr) &&
+        (String != nullptr));
 
     for (size_t i = 0; i < StrLength / sizeof(WCHAR); i++)
     {
         BYTE lowerBits = Bytes[i] & 0xF;
         BYTE higherBits = (Bytes[i] >> 4) & 0xF;
 
-        String[sizeof(WCHAR) * i] = (higherBits >= 0xA) ? (L'A' + higherBits - 0xA) : (L'0' + higherBits);
-        String[sizeof(WCHAR) * i + 1] = (lowerBits >= 0xA) ? (L'A' + lowerBits - 0xA) : (L'0' + lowerBits);
+        String[sizeof(WCHAR) * i] = (higherBits >= 0xA)
+            ? (L'A' + higherBits - 0xA)
+            : (L'0' + higherBits);
+
+        String[sizeof(WCHAR) * i + 1] = (lowerBits >= 0xA)
+            ? (L'A' + lowerBits - 0xA)
+            : (L'0' + lowerBits);
     }
 }
 
@@ -122,7 +150,8 @@ inline
 bool
 HexNibbleFromChar(
     _In_ WCHAR wch,
-    _Out_ BYTE &b)
+    _Out_ BYTE &b
+)
 {
     if (wch >= L'A' && wch <= L'F')
     {
@@ -131,6 +160,12 @@ HexNibbleFromChar(
     else if (wch >= L'0' && wch <= L'9')
     {
         b = static_cast<BYTE>(wch) - L'0';
+    }
+    //some in-market NCM devices doesn't strictly follow ECM spec 5.4
+    //but uses 'a' - 'f' instead
+    else if (wch >= L'a' && wch <= L'f')
+    {
+        b = static_cast<BYTE>(wch - L'a' + 0xA);
     }
     else
     {
@@ -153,10 +188,14 @@ HexStringToBytes(
         BYTE bLeft, bRight;
 
         if (!HexNibbleFromChar(pDigits[0], bLeft))
+        {
             return STATUS_BAD_DATA;
+        }
 
         if (!HexNibbleFromChar(pDigits[1], bRight))
+        {
             return STATUS_BAD_DATA;
+        }
 
         //byte order is unchanged
         pb[i] = bRight | (bLeft << 4);

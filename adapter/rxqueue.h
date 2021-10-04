@@ -10,11 +10,12 @@ class NcmRxQueue
 public:
 
     PAGED
-    static 
-    NTSTATUS 
+    static
+    NTSTATUS
     EvtCreateRxQueue(
         _In_ NETADAPTER netAdapter,
-        _Inout_ NETRXQUEUE_INIT * netRxQueueInit);
+        _Inout_ NETRXQUEUE_INIT * netRxQueueInit
+    );
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
     inline
@@ -22,7 +23,8 @@ public:
     void
     EvtSetNotificationEnabled(
         _In_ NETPACKETQUEUE netQueue,
-        _In_ BOOLEAN notificationEnabled)
+        _In_ BOOLEAN notificationEnabled
+    )
     {
         Get(netQueue)->SetNotificationEnabled(notificationEnabled);
     }
@@ -31,7 +33,9 @@ public:
     inline
     static
     void
-    EvtCancel(_In_ NETPACKETQUEUE netQueue)
+    EvtCancel(
+        _In_ NETPACKETQUEUE netQueue
+    )
     {
         Get(netQueue)->Cancel();
     }
@@ -40,7 +44,9 @@ public:
     inline
     static
     void
-    EvtAdvance(_In_ NETPACKETQUEUE netQueue)
+    EvtAdvance(
+        _In_ NETPACKETQUEUE netQueue
+    )
     {
         Get(netQueue)->Advance();
     }
@@ -49,7 +55,9 @@ public:
     inline
     static
     void
-    EvtStart(_In_ NETPACKETQUEUE netQueue)
+    EvtStart(
+        _In_ NETPACKETQUEUE netQueue
+    )
     {
         Get(netQueue)->Start();
     }
@@ -58,7 +66,9 @@ public:
     inline
     static
     void
-    EvtStop(_In_ NETPACKETQUEUE netQueue)
+    EvtStop(
+        _In_ NETPACKETQUEUE netQueue
+    )
     {
         Get(netQueue)->Stop();
     }
@@ -69,12 +79,17 @@ private:
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
     static
-    NcmRxQueue* Get(_In_ NETPACKETQUEUE queue);
+    NcmRxQueue *
+    Get(
+        _In_ NETPACKETQUEUE queue
+    );
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
     inline
     void
-    SetNotificationEnabled(_In_ BOOLEAN notificationEnabled)
+    SetNotificationEnabled(
+        _In_ BOOLEAN notificationEnabled
+    )
     {
         InterlockedExchange(&m_NotificationEnabled, notificationEnabled);
     }
@@ -82,7 +97,9 @@ private:
     _IRQL_requires_max_(DISPATCH_LEVEL)
     inline
     void
-    NotifyReceive()
+    NotifyReceive(
+        void
+    )
     {
         if (InterlockedExchange(&m_NotificationEnabled, FALSE) == TRUE)
         {
@@ -91,10 +108,12 @@ private:
     }
 
     PAGED
-    NcmRxQueue(_In_ NcmAdapter* ncmAdapter,
-               _In_ NETPACKETQUEUE queue) :
-        m_NcmAdapter(ncmAdapter),
-        m_Queue(queue)
+    NcmRxQueue(
+        _In_ NcmAdapter * ncmAdapter,
+        _In_ NETPACKETQUEUE queue
+    )
+        : m_NcmAdapter(ncmAdapter)
+        , m_Queue(queue)
     {
         m_OsQueue.RingCollection = NetRxQueueGetRingCollection(m_Queue);
 
@@ -110,40 +129,72 @@ private:
 
     PAGED
     NTSTATUS
-    InitializeQueue();
+    InitializeQueue(
+        void
+    );
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    void Advance();
+    void
+    Advance(
+        void
+    );
 
     NONPAGED
-    void Cancel();
+    void
+    Cancel(
+        void
+    );
 
     PAGED
-    void Start();
+    void
+    Start(
+        void
+    );
 
     PAGED
-    void Stop();
+    void
+    Stop(
+        void
+    );
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    NTSTATUS GetNextFrame(
-        _Outptr_result_buffer_(*frameSize)  PUCHAR* frame,
-        _Out_ size_t* frameSize);
+    NTSTATUS
+    GetNextFrame(
+        _Outptr_result_buffer_(*frameSize)  PUCHAR * frame,
+        _Out_ size_t * frameSize
+    );
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    bool MatchPacketFilter(
-        _In_reads_bytes_(ETH_LENGTH_OF_ADDRESS) UINT8 const* frame) const;
+    bool
+    MatchPacketFilter(
+        _In_reads_bytes_(ETH_LENGTH_OF_ADDRESS) UINT8 const * frame
+    ) const;
 
 private:
 
-    NcmOsQueue      m_OsQueue;
-    LONG            m_NotificationEnabled = 0;
-    NcmAdapter*     m_NcmAdapter = nullptr;
-    NETPACKETQUEUE  m_Queue = nullptr;
-    NTB_HANDLE      m_NtbHandle = nullptr;
-    RX_BUFFER*      m_RxBufferInProcessing = nullptr;
-    RX_BUFFER_QUEUE m_RxBufferQueue = nullptr;
+    NcmOsQueue
+        m_OsQueue;
+
+    LONG
+        m_NotificationEnabled = 0;
+
+    NcmAdapter *
+        m_NcmAdapter = nullptr;
+
+    NETPACKETQUEUE
+        m_Queue = nullptr;
+
+    NTB_HANDLE
+        m_NtbHandle = nullptr;
+
+    RX_BUFFER *
+        m_RxBufferInProcessing = nullptr;
+
+    RX_BUFFER_QUEUE
+        m_RxBufferQueue = nullptr;
 
     friend NcmAdapter;
+
 };
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(NcmRxQueue, NcmGetRxQueueFromHandle);

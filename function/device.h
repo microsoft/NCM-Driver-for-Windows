@@ -15,10 +15,10 @@ EXTERN_C_START
 
 struct KUSBFNCLASSLIB_CONTEXT;
 
-VOID
+void
 UsbFnKmClassLibHelperPreProcessBusEventSubscription(
-    __in PUSBFN_NOTIFICATION pNotification,
-    __in KUSBFNCLASSLIB_CONTEXT* pContext
+    _In_ PUSBFN_NOTIFICATION pNotification,
+    _In_ KUSBFNCLASSLIB_CONTEXT * pContext
 );
 
 EXTERN_C_END
@@ -47,53 +47,75 @@ static UINT64 g_UsbFnBusSpeed[] = { 0, USBFN_FULL_SPEED, USBFN_HIGH_SPEED, USBFN
 
 class UsbNcmFunctionDevice
 {
+
 public:
 
     PAGED
     static
     void
-    StartReceive(_In_ WDFDEVICE usbNcmWdfDevice);
+    StartReceive(
+        _In_ WDFDEVICE usbNcmWdfDevice
+    );
 
     PAGED
     static
     void
-    StopReceive(_In_ WDFDEVICE usbNcmWdfDevice);
+    StopReceive(
+        _In_ WDFDEVICE usbNcmWdfDevice
+    );
 
     PAGED
     static
     void
-    StartTransmit(_In_ WDFDEVICE usbNcmWdfDevice);
+    StartTransmit(
+        _In_ WDFDEVICE usbNcmWdfDevice
+    );
 
     PAGED
     static
     void
-    StopTransmit(_In_ WDFDEVICE usbNcmWdfDevice);
+    StopTransmit(
+        _In_ WDFDEVICE usbNcmWdfDevice
+    );
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
     static
     NTSTATUS
-    TransmitFrames(_In_ WDFDEVICE usbNcmWdfDevice,
-                   _In_ TX_BUFFER_REQUEST* bufferRequest);
+    TransmitFrames(
+        _In_ WDFDEVICE usbNcmWdfDevice,
+        _In_ TX_BUFFER_REQUEST * bufferRequest
+    );
 
     PAGED
-    UsbNcmFunctionDevice(_In_ WDFDEVICE wdfDevice) :
-        m_WdfDevice(wdfDevice) {}
+    UsbNcmFunctionDevice(
+        _In_ WDFDEVICE wdfDevice
+    ) : m_WdfDevice(wdfDevice)
+    {
+    }
 
     PAGED
     NTSTATUS
-    InitializeDevice();
+    InitializeDevice(
+        void
+    );
 
     PAGED
     void
-    UnInitializeDevice();
+    UnInitializeDevice(
+        void
+    );
 
     PAGED
     NTSTATUS
-    SubscribeBusEventNotification();
+    SubscribeBusEventNotification(
+        void
+    );
 
     PAGED
-    VOID
-    UnSubscribeBusEventNotification();
+    void
+    UnSubscribeBusEventNotification(
+        void
+    );
 
 private:
 
@@ -102,132 +124,194 @@ private:
     void
     GetPipeMemoryForDataReader(
         _In_ DMFMODULE dmfModule,
-        _Out_writes_(*inputBufferSize) VOID* inputBuffer,
-        _Out_ size_t* inputBufferSize,
-        _In_ VOID*);
+        _Out_writes_(* inputBufferSize) void * inputBuffer,
+        _Out_ size_t * inputBufferSize,
+        _In_ void*
+    );
 
     PAGED
     static
     ContinuousRequestTarget_BufferDisposition
-    DataBulkOutPipeRead(_In_ DMFMODULE dmfModule,
-                        _In_reads_(OutputBufferSize) VOID* outputBuffer,
-                        _In_ size_t outputBufferSize,
-                        _In_ VOID* clientBufferContextOutput,
-                        _In_ NTSTATUS completionStatus);
+    DataBulkOutPipeRead(
+        _In_ DMFMODULE dmfModule,
+        _In_reads_(OutputBufferSize) void * outputBuffer,
+        _In_ size_t outputBufferSize,
+        _In_ void * clientBufferContextOutput,
+        _In_ NTSTATUS completionStatus
+    );
 
     PAGED
     static
     ContinuousRequestTarget_BufferDisposition
-    BusEventNotificationRead(_In_ DMFMODULE dmfModule,
-                             _In_reads_(OutputBufferSize) VOID* outputBuffer,
-                             _In_ size_t outputBufferSize,
-                             _In_ VOID* clientBufferContextOutput,
-                             _In_ NTSTATUS completionStatus);
+    BusEventNotificationRead(
+        _In_ DMFMODULE dmfModule,
+        _In_reads_(OutputBufferSize) void * outputBuffer,
+        _In_ size_t outputBufferSize,
+        _In_ void * clientBufferContextOutput,
+        _In_ NTSTATUS completionStatus
+    );
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
     static
-    VOID
-    TransmitFramesCompetion(_In_ WDFREQUEST request,
-                            _In_ WDFIOTARGET target,
-                            _In_ PWDF_REQUEST_COMPLETION_PARAMS params,
-                            _In_ WDFCONTEXT context);
+    void
+    TransmitFramesCompetion(
+        _In_ WDFREQUEST request,
+        _In_ WDFIOTARGET target,
+        _In_ PWDF_REQUEST_COMPLETION_PARAMS params,
+        _In_ WDFCONTEXT context
+    );
 
     PAGED
     NTSTATUS
-    CacheClassInformation();
+    CacheClassInformation(
+        void
+    );
 
     PAGED
     void
-    SetParameters();
+    SetParameters(
+        void
+    );
 
     PAGED
     NTSTATUS
-    RegisterCdcMacString();
+    RegisterCdcMacString(
+        void
+    );
 
     PAGED
     NTSTATUS
-    CreateContinuousReaders();
+    CreateContinuousReaders(
+        void
+    );
 
     PAGED
-    VOID
+    void
     InterruptHost(
         _In_ PVOID InterruptBuffer,
-        _In_ size_t InterruptBufferSize);
+        _In_ size_t InterruptBufferSize
+    );
 
     PAGED
-    VOID
+    void
     NotifyConnectionSpeedAndStatusChange(
         _In_ bool NetworkConnectionState,
-        _In_ UINT64 LinkSpeed);
+        _In_ UINT64 LinkSpeed
+    );
 
     PAGED
     NTSTATUS
-    SendHandshake();
+    SendHandshake(
+        void
+    );
 
     PAGED
     NTSTATUS
     ReadFromEndPoint0(
         _In_ size_t bytesToRead,
-        _Out_writes_bytes_(bytesToRead) PVOID buffer);
+        _Out_writes_bytes_(bytesToRead) PVOID buffer
+    );
 
     PAGED
     NTSTATUS
     WriteToEndPoint0(
         _In_reads_bytes_(writeBufLen) PVOID writeBuf,
-        _In_ size_t writeBufLen);
+        _In_ size_t writeBufLen
+    );
 
     PAGED
-    VOID
-    StallEndPoint0();
+    void
+    StallEndPoint0(
+        void
+    );
 
     PAGED
-    VOID
+    void
     ProcessSetupPacket(
-        _In_ const USB_DEFAULT_PIPE_SETUP_PACKET& SetupPacket);
+        _In_ const USB_DEFAULT_PIPE_SETUP_PACKET & SetupPacket
+    );
 
     PAGED
     NTSTATUS
-    CreateAdapter();
+    CreateAdapter(
+        void
+    );
 
     PAGED
-    VOID
-    DestroyAdapter();
+    void
+    DestroyAdapter(
+        void
+    );
 
 private:
 
-    static const
-    USBNCM_DEVICE_EVENT_CALLBACKS           s_NcmDeviceCallbacks;
+    static
+    const
+    USBNCM_DEVICE_EVENT_CALLBACKS
+        s_NcmDeviceCallbacks;
 
-    WDFDEVICE                               m_WdfDevice = nullptr;
-    NETADAPTER                              m_NetAdapter = nullptr;
+    WDFDEVICE
+        m_WdfDevice = nullptr;
 
-    USBNCM_ADAPTER_EVENT_CALLBACKS const*   m_NcmAdapterCallbacks = nullptr;
+    NETADAPTER
+        m_NetAdapter = nullptr;
 
-    KUSBFNCLASSLIBHANDLE                    m_UsbFnClassLibHandle = nullptr;
+    USBNCM_ADAPTER_EVENT_CALLBACKS const *
+        m_NcmAdapterCallbacks = nullptr;
 
-    USBFN_DEVICE_STATE                      m_State = UsbfnDeviceStateMinimum;
-    USBFN_BUS_SPEED                         m_BusSpeed = UsbfnBusSpeedLow;
+    KUSBFNCLASSLIBHANDLE
+        m_UsbFnClassLibHandle = nullptr;
+
+    USBFN_DEVICE_STATE
+        m_State = UsbfnDeviceStateMinimum;
+
+    USBFN_BUS_SPEED
+        m_BusSpeed = UsbfnBusSpeedLow;
 
     // Interfaces and Endpoints
-    USHORT                                  m_AlternateInterfaceNumber = 0;
-    UINT8                                   m_CommunicationInterfaceIndex = 0;
-    UINT8                                   m_DataInterfaceIndex = 0;
+    USHORT
+        m_AlternateInterfaceNumber = 0;
 
-    USBFN_PIPE_INFORMATION                  m_EndPoint0 = {};
-    USBFN_PIPE_INFORMATION                  m_Interrupt = {};
-    USBFN_PIPE_INFORMATION                  m_BulkIn = {};
-    USBFN_PIPE_INFORMATION                  m_BulkOut = {};
+    UINT8
+        m_CommunicationInterfaceIndex = 0;
+
+    UINT8
+        m_DataInterfaceIndex = 0;
+
+    USBFN_PIPE_INFORMATION
+        m_EndPoint0 = {};
+
+    USBFN_PIPE_INFORMATION
+        m_Interrupt = {};
+
+    USBFN_PIPE_INFORMATION
+        m_BulkIn = {};
+
+    USBFN_PIPE_INFORMATION
+        m_BulkOut = {};
 
     // NCM
-    BYTE                                    m_CdcMacAddress[ETH_LENGTH_OF_ADDRESS] = {};
-    BOOLEAN                                 m_Use32BitNtb = FALSE;
-    NTB_PARAMETERS                          m_NtbParamters = {};
-    UINT32                                  m_HostSelectedNtbInMaxSize = 0;
+    BYTE
+        m_CdcMacAddress[ETH_LENGTH_OF_ADDRESS] = {};
 
-    EX_RUNDOWN_REF                          m_BulkInRundown = {};
+    BOOLEAN
+        m_Use32BitNtb = FALSE;
 
-    DMFMODULE                               m_ControlContinuousRequest = nullptr;
-    DMFMODULE                               m_DataContinuousRequest = nullptr;
+    NTB_PARAMETERS
+        m_NtbParamters = {};
+
+    UINT32
+        m_HostSelectedNtbInMaxSize = 0;
+
+    EX_RUNDOWN_REF
+        m_BulkInRundown = {};
+
+    DMFMODULE
+        m_ControlContinuousRequest = nullptr;
+
+    DMFMODULE
+        m_DataContinuousRequest = nullptr;
+
 };
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(UsbNcmFunctionDevice, NcmGetFunctionDeviceFromHandle)

@@ -10,32 +10,34 @@ class NcmTxQueue
 public:
 
     PAGED
-    static 
-    NTSTATUS 
+    static
+    NTSTATUS
     EvtCreateTxQueue(
         _In_ NETADAPTER netAdapter,
-        _Inout_ NETTXQUEUE_INIT * netTxQueueInit);
+        _Inout_ NETTXQUEUE_INIT * netTxQueueInit
+    );
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
     inline
     static
     void
     EvtSetNotificationEnabled(
-        _In_ NETPACKETQUEUE netQueue,
-        _In_ BOOLEAN notificationEnabled)
+        _In_ NETPACKETQUEUE,
+        _In_ BOOLEAN
+    )
     {
-        if (notificationEnabled)
-        {
-            // UsbNcm's tx is completed instantly within Advance()
-            NetTxQueueNotifyMoreCompletedPacketsAvailable(netQueue);
-        }
+        // UsbNcm's tx is completed instantly within Advance()
+        // so it doesn't need to generate any out-of-band notification 
+        // for tx completion
     }
 
     NONPAGED
     inline
     static
     void
-    EvtCancel(_In_ NETPACKETQUEUE netQueue)
+    EvtCancel(
+        _In_ NETPACKETQUEUE netQueue
+    )
     {
         Get(netQueue)->Cancel();
     }
@@ -44,7 +46,9 @@ public:
     inline
     static
     void
-    EvtAdvance(_In_ NETPACKETQUEUE netQueue)
+    EvtAdvance(
+        _In_ NETPACKETQUEUE netQueue
+    )
     {
         Get(netQueue)->Advance();
     }
@@ -53,7 +57,9 @@ public:
     inline
     static
     void
-    EvtStart(_In_ NETPACKETQUEUE netQueue)
+    EvtStart(
+        _In_ NETPACKETQUEUE netQueue
+    )
     {
         Get(netQueue)->Start();
     }
@@ -62,7 +68,9 @@ public:
     inline
     static
     void
-    EvtStop(_In_ NETPACKETQUEUE netQueue)
+    EvtStop(
+        _In_ NETPACKETQUEUE netQueue
+    )
     {
         Get(netQueue)->Stop();
     }
@@ -73,13 +81,18 @@ private:
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
     static
-    NcmTxQueue* Get(_In_ NETPACKETQUEUE queue);
+    NcmTxQueue *
+    Get(
+        _In_ NETPACKETQUEUE queue
+    );
 
     PAGED
-    NcmTxQueue(_In_ NcmAdapter* ncmAdapter,
-               _In_ NETPACKETQUEUE queue) :
-        m_NcmAdapter(ncmAdapter),
-        m_Queue(queue)
+    NcmTxQueue(
+        _In_ NcmAdapter * ncmAdapter,
+        _In_ NETPACKETQUEUE queue
+    )
+        : m_NcmAdapter(ncmAdapter)
+        , m_Queue(queue)
     {
         m_OsQueue.RingCollection = NetTxQueueGetRingCollection(m_Queue);
 
@@ -95,29 +108,53 @@ private:
 
     PAGED
     NTSTATUS
-    InitializeQueue();
+    InitializeQueue(
+        void
+    );
 
     _IRQL_requires_max_(DISPATCH_LEVEL)
-    void Advance();
+    void
+    Advance(
+        void
+    );
 
     NONPAGED
-    void Cancel();
+    void
+    Cancel(
+        void
+    );
 
     PAGED
-    void Start();
+    void
+    Start(
+        void
+    );
 
     PAGED
-    void Stop();
+    void
+    Stop(
+        void
+    );
 
 private:
 
-    NcmOsQueue              m_OsQueue;
-    NcmAdapter*             m_NcmAdapter = nullptr;
-    NETPACKETQUEUE          m_Queue = nullptr;
-    NTB_HANDLE              m_NtbHandle = nullptr;
-    TX_BUFFER_REQUEST_POOL  m_TxBufferRequestPool = nullptr;
+    NcmOsQueue
+        m_OsQueue;
+
+    NcmAdapter *
+        m_NcmAdapter = nullptr;
+
+    NETPACKETQUEUE
+        m_Queue = nullptr;
+
+    NTB_HANDLE
+        m_NtbHandle = nullptr;
+
+    TX_BUFFER_REQUEST_POOL
+        m_TxBufferRequestPool = nullptr;
 
     friend NcmAdapter;
+
 };
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(NcmTxQueue, NcmGetTxQueueFromHandle);
