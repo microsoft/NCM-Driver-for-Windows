@@ -188,8 +188,9 @@ public:
         //
         // that every NDP shall end with a Null entry
 
+        // the new datagram's entry plus the null entry
         size_t totalNtbSizeNeeded =
-            ndpOffset + sizeof(NDP) + (m_CurrentNdpDatagramCount + 1) * sizeof(DPE);
+            ndpOffset + sizeof(NDP) + (m_CurrentNdpDatagramCount + 2) * sizeof(DPE);
 
         if (totalNtbSizeNeeded > m_BufferLength)
         {
